@@ -27,12 +27,22 @@ class ProcessDataImport implements ShouldQueue
 
     public int $timeout = 300;
 
+    public int $tries = 1;
+
     protected array $apiErrors = [];
 
     protected int $totalAgentsQueried = 0;
 
     public function __construct(public DataImport $import)
     {
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        $this->import->update([
+            'status'        => 'failed',
+            'error_message' => 'فشل Job بشكل غير متوقع: ' . $exception->getMessage(),
+        ]);
     }
 
     public function handle(): void
@@ -59,6 +69,9 @@ class ProcessDataImport implements ShouldQueue
                 : count($dataRows);
 
             $errorDetails = [];
+
+            // تقليل lock wait إلى 5 ثوانٍ لهذه الجلسة فقط — يمنع تجميد الـ import إذا عدّل Admin وكيلاً في نفس الوقت
+            DB::statement('SET SESSION innodb_lock_wait_timeout = 5');
 
             DB::transaction(function () use ($dataRows, $clubs, &$stats, &$errorDetails) {
                 Agent::withoutEvents(function () use ($dataRows, $clubs, &$stats, &$errorDetails) {

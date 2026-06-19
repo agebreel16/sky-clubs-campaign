@@ -1,5 +1,5 @@
 # Sky Clubs Campaign — Technical Blueprint
-> **الإصدار:** 2.0 | **التاريخ:** 2026-06-18 | **الكاتب:** Lead Software Architect (AI)
+> **الإصدار:** 3.0 | **التاريخ:** 2026-06-20 | **الكاتب:** Lead Software Architect (AI)
 > **Stack:** Laravel 13 · Filament 5.6 · PHP 8.4 · MySQL 8.0 · Livewire 3
 
 ---
@@ -34,7 +34,7 @@
 | الجدول | PK | FK المهمة | الغرض |
 |---|---|---|---|
 | `clubs` | `club_id` (UUID) | — | إعداد الأندية الثلاثة — مركز التحكم الديناميكي |
-| `agents` | `agent_id` (UUID) | `current_club_id → clubs`, `distributor_id → distributors` | كيان الوكيل + أرقامه الحالية. يحتوي `portal_token` (64 hex, nullable unique) لبوابة الوكيل. حقول المخالف: `is_violator`, `violator_since`, `violator_reason` |
+| `agents` | `agent_id` (UUID) | `current_club_id → clubs`, `distributor_id → distributors` | كيان الوكيل + أرقامه الحالية. يحتوي `portal_token` (64 hex, nullable unique) لبوابة الوكيل. حقل `last_self_sync_at` (timestamp nullable) لآخر مزامنة ذاتية من البوابة. حقول المخالف: `is_violator`, `violator_since`, `violator_reason` |
 | `club_change_requests` | `id` (UUID) | `agent_id → agents` (CASCADE), `import_id → data_imports` (SET NULL), `from_club_id / to_club_id → clubs` (SET NULL), `reviewed_by → users` (SET NULL) | طلبات تغيير النادي المعلّقة — الاستيراد يُنشئها، الأدمن يراجعها |
 | `distributors` | `id` (UUID) | — | الموزعون (بيانات تسجيل الدخول + ربط الوكلاء) |
 | `rewards` | `reward_id` (UUID) | `agent_id → agents`, `club_id → clubs` | المكافآت المالية (دخول النادي + الأوائل) |
@@ -180,8 +180,8 @@ app/Providers/Filament/
 
 | Resource | Model | Panel | صلاحيات | Special Logic |
 |---|---|---|---|---|
-| `AgentResource` | `Agent` | Admin | `AgentPolicy` (User-typed) | `autoAssignClub()` عند الإنشاء/التعديل — يحسب النادي تلقائياً. `mutateFormDataBeforeCreate()` يحدد `current_club_id` |
-| `ClubChangeRequestResource` | `ClubChangeRequest` | Admin | — | صفحة مراجعة طلبات التغيير. Actions: قبول (Query Builder + Reward + Opportunity + إشعار ترقية فقط) / رفض (rejection_reason + خيار mark_as_violator للترقيات). canCreate()=false. Navigation badge يُظهر عدد المعلّق |
+| `AgentResource` | `Agent` | Admin | `AgentPolicy` (Authenticatable-typed + instanceof User guard) | `autoAssignClub()` عند الإنشاء/التعديل — يحسب النادي تلقائياً. `mutateFormDataBeforeCreate()` يحدد `current_club_id` |
+| `ClubChangeRequestResource` | `ClubChangeRequest` | Admin | — | صفحة مراجعة طلبات التغيير. Actions: قبول (Query Builder + Reward + Opportunity + إشعار ترقية فقط) / رفض (rejection_reason + خيار mark_as_violator للترقيات). **BulkAction** "قبول الترقيات المحددة" (promotion+pending فقط — التهبيط يبقى يدوياً). canCreate()=false. Navigation badge يُظهر عدد المعلّق |
 | `ClubResource` | `Club` | Admin | `ClubPolicy` | CRUD كامل — أي تعديل يؤثر فوراً على كل الحسابات |
 | `DistributorResource` | `Distributor` | Admin | — | `ViewDistributor` يتضمن `Action::make('assign_agents')` لتعيين وكلاء بالجملة |
 | `RewardResource` | `Reward` | Admin | `RewardPolicy` | تعديل `payment_status` (pending/paid/failed) |
@@ -231,7 +231,7 @@ app/Providers/Filament/
 
 **الملف:** `app/Jobs/ProcessDataImport.php`
 **التشغيل:** Queue (async) — يُطلق من `CreateDataImport::afterCreate()` أو يدوياً من `DataImportResource`.
-**Timeout:** 300 ثانية.
+**Timeout:** 300 ثانية · **Tries:** 1 (لا retry — يمنع تكرار AuditLog) · **failed():** يُحدِّث `import.status = 'failed'` كـ safety net.
 
 **مسار التنفيذ (الإصدار 2.0 — Approval Flow):**
 
@@ -242,6 +242,7 @@ handle()
   │    ├─ [excel] يقرأ xlsx — columns: [agent_id, current_total, transfer_count, new_line_count]
   │    └─ [api]   ->where('is_violator', false)  ← يستثني المخالفين من استعلام الوكلاء
   │
+  ├─ SET SESSION innodb_lock_wait_timeout = 5  ← يمنع تجميد الـ import إذا كان Admin يعدّل وكيلاً بالتزامن
   └─ DB::transaction()
        └─ Agent::withoutEvents(closure)   ← Observer مُعطَّل كلياً
             └─ foreach row → processAgentRow($row, $clubs, &$stats)
@@ -439,7 +440,7 @@ match($action) {
 
 | الملف | يُستدعى متى؟ | الدور في دورة الحياة |
 |---|---|---|
-| `Agent.php` | في كل مكان | الكيان المحوري. Accessors: `campaign_increase`, `transfer_percentage`, `baseline_loss`. حقول المخالف: `is_violator`, `violator_since`, `violator_reason`. علاقة `clubChangeRequests()` |
+| `Agent.php` | في كل مكان | الكيان المحوري. Accessors: `campaign_increase`, `transfer_percentage`, `baseline_loss`. حقول المخالف: `is_violator`, `violator_since`, `violator_reason`. حقل `last_self_sync_at` (datetime cast, nullable) — يُعيَّن بعد كل self-sync. علاقة `clubChangeRequests()` |
 | `Club.php` | عند Import + تقييم الترقية | يحمل إعداد الأندية. `getLotteryUnlocked` يحسب هل يُفتح اليانصيب |
 | `ClubChangeRequest.php` | في Import + ClubChangeRequestResource | طلبات تغيير النادي المعلّقة. Scopes: `scopePending()`. العلاقات: `agent()`, `fromClub()`, `toClub()`, `import()`, `reviewer()` |
 | `Distributor.php` | تسجيل دخول Distributor Panel | `canAccessPanel()` يفرض عزل الـ Panel |
@@ -458,9 +459,10 @@ match($action) {
 
 | الملف | كيف يُطلق؟ | التفاصيل |
 |---|---|---|
-| `ProcessDataImport.php` | `CreateDataImport::afterCreate()` + يدوياً من `NumbersApiSettings` / `DealsApiSettings` / `SyncAgentDeals` | ShouldQueue · timeout=300s · تحديث إحصائيات وكلاء موجودين |
-| `ProcessAgentImport.php` | `CreateAgentImport::afterCreate()` + زر retry + `AgentsApiSettings::syncNow()` | ShouldQueue · timeout=300s · إنشاء وكلاء جدد من Excel أو API |
+| `ProcessDataImport.php` | `CreateDataImport::afterCreate()` + يدوياً من `NumbersApiSettings` / `DealsApiSettings` / `SyncAgentDeals` | ShouldQueue · timeout=300s · tries=1 · failed() safety net · تحديث إحصائيات وكلاء موجودين |
+| `ProcessAgentImport.php` | `CreateAgentImport::afterCreate()` + زر retry + `AgentsApiSettings::syncNow()` | ShouldQueue · timeout=300s · tries=1 · failed() safety net · إنشاء وكلاء جدد من Excel أو API |
 | `ProcessDistributorSync.php` | `DistributorsApiSettings::syncNow()` | ShouldQueue · timeout=120s · يجلب الموزعين من API خارجي (Bearer Token) → يُنشئ Distributor جديد لكل UUID غير موجود (skip إن موجود حتى مع SoftDelete). يدعم: `{"distributors":[]}` / `{"data":[]}` / `[...]`. يحفظ `last_distributor_sync` + `last_distributor_sync_result` في AppSetting |
+| `ProcessAgentSelfSync.php` | `AgentSyncing::runSync()` مباشرة — **لا queue** | **Synchronous** — يُشغَّل عبر `$job->handle()` مباشرة (لا `dispatch()`). timeout=30s · tries=1. POST إلى Deals API لوكيل واحد (`GetSubCustomerDeals`) → تحديث أرقامه + `DailySnapshot::where()->update()` (لا insert — `import_id NOT NULL`) + إنشاء `ClubChangeRequest(pending)` عند تغيّر الاستحقاق. يُحدِّث `last_self_sync_at` دائماً عند الانتهاء. يتجاوز الوكيل المخالف كلياً. `import_id = null` في أي `ClubChangeRequest` ينشئه (nullable ✅) |
 
 ### 5.3 Observers (`app/Observers/`)
 
@@ -609,10 +611,10 @@ campaign_increase (per day) = snapshot.transfer_count + snapshot.new_line_count
 | `distributors_api_token` | — | `DistributorsApiSettings`, `ProcessDistributorSync` |
 | `last_distributor_sync` | — | يكتبه `ProcessDistributorSync`، يقرأه `DistributorsApiSettings::getLastSync()` |
 | `last_distributor_sync_result` | — | يكتبه `ProcessDistributorSync` (ملخص نصي: "تم إضافة X موزع جديد، تجاوز Y") |
-| `deals_api_url` | — | `DealsApiSettings`, `SyncAgentDeals`, `SyncStatusBadge::autoSync()` |
-| `deals_api_username` | — | `DealsApiSettings`, `SyncAgentDeals`, `ProcessDataImport` |
-| `deals_api_password` | — | `DealsApiSettings`, `ProcessDataImport` |
-| `deals_campaign_start_date` | `'2026-05-01'` | `DealsApiSettings`, `ProcessDataImport` |
+| `deals_api_url` | — | `DealsApiSettings`, `SyncAgentDeals`, `SyncStatusBadge::autoSync()`, `ProcessAgentSelfSync` |
+| `deals_api_username` | — | `DealsApiSettings`, `SyncAgentDeals`, `ProcessDataImport`, `ProcessAgentSelfSync` |
+| `deals_api_password` | — | `DealsApiSettings`, `ProcessDataImport`, `ProcessAgentSelfSync` |
+| `deals_campaign_start_date` | `'2026-05-01'` | `DealsApiSettings`, `ProcessDataImport`, `ProcessAgentSelfSync` |
 | `deals_sync_enabled` | `'0'` | `SyncAgentDeals`, `SyncStatusBadge` |
 | `deals_sync_interval_minutes` | `120` (دقيقة)، حد أدنى `5` | `SyncAgentDeals`, `SyncStatusBadge` |
 
@@ -796,43 +798,31 @@ Admin يفتح /admin/club-change-requests:
 | المخاطرة | الخطورة | التفاصيل |
 |---|---|---|
 | ~~**AgentNotification Missing Path**~~ | ✅ مُصلَح | `checkAndApplyPromotion()` يُنشئ `AgentNotification` + WebPush عند الترقية اليدوية. `ClubChangeRequestResource::approveRequest()` يُنشئ `AgentNotification` + WebPush عند قبول ترقية فقط. لا إشعار عند التهبيط أو الرفض أو المخالفة. |
-| **Missing DB-level Immutability** | 🟡 متوسطة | `HistoryLog` و`AuditLog` محمية بتعليق فقط، لا DB Trigger. أي `HistoryLog::where()->update()` مباشر في الكود سيمر بدون عائق. |
-| **Queue Worker Dependency** | 🟡 متوسطة | إذا توقف Queue Worker، كل imports ستبقى pending بصمت. لا alerting مدمج. |
-| **Transaction Locking** | 🟡 متوسطة | `DB::transaction()` في `ProcessDataImport` يُقفل صفوف `agents` لكامل مدة الاستيراد. إذا كان Admin يُعدِّل وكيلاً في نفس الوقت → `Lock wait timeout`. |
-| **AgentPolicy Type Mismatch** | 🟡 متوسطة | `AgentPolicy` مربوطة بـ `User` type-hint. الـ Distributor Panel يتجاوزها بـ `getAuthorizationResponse()` override — لكن أي resource جديد في Distributor Panel سينسى هذا ويقع في نفس الخطأ. |
-| **N+1 في ClubBreakdownWidget** | 🟠 منخفضة-متوسطة | `ClubBreakdownWidget` يُنفِّذ 4 queries لكل نادٍ (3 أندية = ~12 query). الآن مع `->where('is_violator', false)` على كل query. لا eager loading. |
-| **Approval Bottleneck** | 🟡 متوسطة | إذا اجتمع عدد كبير من الطلبات المعلّقة (import ضخم)، الأدمن يحتاج مراجعة يدوية لكل طلب. لا bulk approve حالياً — كل طلب يحتاج قراراً منفرداً. |
-| **`$agent->refresh()` في الـ Job** | 🟠 منخفضة | `$agent->refresh()` بعد `update()` يُعيد تحميل البيانات من DB — ضروري لأن `update()` لا يحدّث الـ instance تلقائياً. Observer لا يعمل هنا (withoutEvents) لذا لا تعارض، لكن أي `Agent::where()->update()` موازٍ من Admin في نفس اللحظة قد يُسبّب تقييماً على بيانات غير متسقة. |
-| **Bonus Opportunities لا تتحقق من Idempotency كافية** | 🟠 منخفضة | حساب Bonus يقارن `existing` بـ `bonusCount`، لكن إذا نُفِّذ Import مرتين في نفس اليوم بنفس البيانات، ستُنشأ فرص مكررة. |
+| ~~**Missing DB-level Immutability**~~ | ✅ مُصلَح (2026-06-19) | `HistoryLog` و`AuditLog` يرميان `LogicException` عند استدعاء `performUpdate()` أو `performDeleteOnModel()` — حماية حقيقية لا بتعليق فقط. |
+| **Queue Worker Dependency** | 🟡 متوسطة (مُحسَّن) | إذا توقف Queue Worker، كل imports ستبقى pending بصمت. لا alerting مدمج. **تحسين (2026-06-19):** `tries=1` + `failed()` تضمن تحديث `import.status = 'failed'` حتى عند الـ catastrophic failure قبل الـ try-catch. الحل الكامل (Slack/email alerting) لا يزال مفتوحاً. |
+| **Transaction Locking** | 🟡 متوسطة (مُخففة) | `DB::transaction()` في `ProcessDataImport` يُقفل صفوف `agents`. **تخفيف (2026-06-19):** `SET SESSION innodb_lock_wait_timeout = 5` يجعل تعارض الـ Admin يفشل في 5 ثوانٍ بدلاً من التجمّد 50 ثانية. الحل الجذري (per-row micro-transactions) مُؤجَّل. |
+| ~~**AgentPolicy Type Mismatch**~~ | ✅ مُصلَح (2026-06-19) | `AgentPolicy` محوّلة لـ `Authenticatable` type-hint مع `instanceof User` guard في كل method — أي Panel جديد يصل للـ Policy بـ non-User يحصل على `false` بدلاً من crash. |
+| ~~**N+1 في ClubBreakdownWidget**~~ | ✅ مُصلَح (2026-06-19) | من 13 query → 6 queries: query واحدة aggregate للأعداد + first_arrivals (per distributor)، query واحدة للأعداد الكلية، 3 queries لـ latestMember (1 لكل نادٍ). |
+| **Approval Bottleneck** | 🟢 مُعالَج جزئياً (2026-06-19) | **BulkAction** "قبول الترقيات المحددة" مُضاف — يعالج عدة ترقيات معلّقة دفعة واحدة مع try-catch per-record. التهبيط يبقى يدوياً عمداً (قرار حرج). |
+| **Self-Sync API Latency** | 🟡 متوسطة | `ProcessAgentSelfSync` يستدعي Deals API synchronously (timeout=15s). إذا كان الـ API بطيئاً أو معطلاً → الوكيل ينتظر حتى 15 ثانية على صفحة المزامنة. الـ `updateSyncTime()` تُنفَّذ دائماً عند أي نتيجة → لا crash. لا fallback خارجي (retry أو alerting) حالياً. |
+| **`$agent->refresh()` في الـ Job** | 🟠 منخفضة | `$agent->refresh()` بعد `update()` يُعيد تحميل البيانات من DB — ضروري لأن `update()` لا يحدّث الـ instance تلقائياً. Observer لا يعمل هنا (withoutEvents) لذا لا تعارض، لكن أي `Agent::where()->update()` موازٍ من Admin في نفس اللحظة قد يُسبّب تقييماً على بيانات غير متسقة. مُخفَّف بـ lock_wait_timeout=5. |
+| ~~**Bonus Opportunities لا تتحقق من Idempotency كافية**~~ | ✅ مُغلَق | قراءة الكود أثبتت أن الـ idempotency موجودة فعلاً: `$existing = count()` → `for ($i = $existing; $i < $bonusCount; $i++)` — لا تكرار حتى عند تشغيل Import مرتين. |
 
 ---
 
 ## 8. Technical Debt
 
-### TD-002: AgentPolicy مقيّدة بـ `User` فقط
+### ~~TD-002~~: ✅ مُصلَح — AgentPolicy محوّلة لـ `Authenticatable` (2026-06-19)
 
-**الوضع:** `AgentPolicy::view(User $user, ...)` — type-hint صريح.
-**التأثير:** أي Panel جديد يستخدم `Agent` model (غير Admin) سيحتاج bypass مماثل.
-**الحل المقترح:** تحويل type-hint إلى `Authenticatable` أو استخدام interface مشترك، أو إنشاء Policy منفصلة لكل Panel.
+**الوضع السابق:** `AgentPolicy::view(User $user, ...)` — type-hint صريح.
+**الإصلاح:** كل methods محوّلة لـ `Authenticatable $user` مع `instanceof User` guard → أي Panel جديد يصل للـ Policy بـ non-User يحصل على `false` بدلاً من PHP fatal error.
 
 ---
 
-### TD-003: Immutability بالاتفاق لا بالقيد
+### ~~TD-003~~: ✅ مُصلَح — Immutability بقيد حقيقي (2026-06-19)
 
-**الوضع:** `HistoryLog` و`AuditLog` محمية بتعليق `// Immutable` فقط.
-**الخطر:** مطوّر جديد يمكنه استدعاء `HistoryLog::where()->update()` بدون أي عائق.
-**الحل المقترح:**
-```php
-// في HistoryLog + AuditLog
-public function performUpdate(Builder $query): bool
-{
-    throw new \LogicException('HistoryLog is immutable.');
-}
-public function performDeleteOnModel(): bool
-{
-    throw new \LogicException('HistoryLog is immutable.');
-}
-```
+**الوضع السابق:** `HistoryLog` و`AuditLog` محمية بتعليق `// Immutable` فقط.
+**الإصلاح:** `performUpdate()` و`performDeleteOnModel()` في كلا الـ Model يرميان `LogicException` — حماية على مستوى Eloquent لا يمكن تجاوزها بالخطأ.
 
 ---
 
@@ -1089,7 +1079,11 @@ Admin → ViewAgent → "شارك الرابط"
        ├─ hash_equals($agent->portal_token, $request->token) — constant-time comparison
        ├─ $request->session()->regenerate()
        ├─ session['agent_portal_id'] = $uuid
-       └─ redirect → /agent/{uuid}/dashboard
+       └─ redirect → /agent/{uuid}/syncing  ← صفحة المزامنة أولاً
+
+/agent/{uuid}/syncing → AgentSyncing (Livewire) [جديد — §12.10]:
+  ├─ Render فوري: spinner + "جارٍ تحديث بياناتك..."
+  └─ wire:init="runSync" → Livewire XHR → ProcessAgentSelfSync->handle() [sync] → redirect → dashboard
 
 الصفحات المحمية:
   → AgentPortalAuth middleware
@@ -1104,11 +1098,12 @@ Admin → ViewAgent → "شارك الرابط"
 
 ---
 
-### 12.3 Routes (9 مسارات)
+### 12.3 Routes (10 مسارات)
 
 | الطريقة | المسار | الحماية | الهدف |
 |---|---|---|---|
-| GET | `/agent/{uuid}` | throttle:10,1 | دخول بالرابط → session → redirect |
+| GET | `/agent/{uuid}` | throttle:10,1 | دخول بالرابط → session → redirect لـ /syncing |
+| GET | `/agent/{uuid}/syncing` | agent.portal.auth | صفحة المزامنة — spinner + wire:init → runSync → dashboard |
 | GET | `/agent/{uuid}/dashboard` | agent.portal.auth | الرئيسية (KPIs) |
 | GET | `/agent/{uuid}/progress` | agent.portal.auth | مخطط الأداء |
 | GET | `/agent/{uuid}/notifications` | agent.portal.auth | الإشعارات |
@@ -1154,7 +1149,8 @@ Alpine.js tick() كل ثانية:
 | Component | الملف | الوظيفة |
 |---|---|---|
 | `AgentPortalPage` | `app/Livewire/AgentPortal/AgentPortalPage.php` | Abstract base — يحمّل `$agent` + `renderWithLayout()` |
-| `AgentDashboard` | `AgentPortal/AgentDashboard.php` | KPIs + club badge. Banner احمر أعلى الصفحة إذا `$agent->is_violator` ("حسابك مُعلَّق من قِبَل الإدارة") |
+| `AgentSyncing` | `AgentPortal/AgentSyncing.php` | صفحة المزامنة — `wire:init="runSync"` يُطلق `ProcessAgentSelfSync->handle()` synchronously. عند الانتهاء: redirect للـ dashboard. يُعرض spinner "جارٍ تحديث بياناتك..." خلال الانتظار (لا polling، لا queue) |
+| `AgentDashboard` | `AgentPortal/AgentDashboard.php` | KPIs + club badge. Banner احمر أعلى الصفحة إذا `$agent->is_violator` ("حسابك مُعلَّق من قِبَل الإدارة"). يُعرض "آخر مزامنة: X" إذا `last_self_sync_at` غير null |
 | `AgentProgress` | `AgentPortal/AgentProgress.php` | 3 datasets من dailySnapshots — Alpine.js يُبدّل client-side |
 | `AgentNotifications` | `AgentPortal/AgentNotifications.php` | قائمة إشعارات مع `markRead()` + `markAllRead()` + filter |
 | `AgentRewards` | `AgentPortal/AgentRewards.php` | مكافآت مع payment_status badge |
@@ -1214,6 +1210,8 @@ Alpine.js يستقبل الحدث:
 **SMS:** abstraction layer — `SmsDriver` interface → `NullSmsDriver` (dev) / `UnifonicSmsDriver` (prod).
 **Queue:** `QUEUE_CONNECTION=sync` في dev (الإشعارات تُرسَل فوراً). في prod: تغيير لـ `database` أو `redis` مع queue worker.
 
+> **ملاحظة:** `ProcessAgentSelfSync` لا يستخدم Queue إطلاقاً — يُشغَّل synchronously عبر `$job->handle()` مباشرة في `AgentSyncing::runSync()`. يعمل حتى بدون queue worker.
+
 ---
 
 ### 12.7 Agent Model — التعديلات
@@ -1222,7 +1220,11 @@ Alpine.js يستقبل الحدث:
 use HasUuids, SoftDeletes, Notifiable, HasPushSubscriptions;
 
 // Fillable additions:
-'portal_token',   // nullable unique string(64)
+'portal_token',         // nullable unique string(64)
+'last_self_sync_at',    // nullable timestamp — تُحدَّث بعد كل self-sync
+
+// Casts additions:
+'last_self_sync_at' => 'datetime',
 
 // Methods added:
 generatePortalToken(): string        // bin2hex(random_bytes(32)) + update()
@@ -1246,6 +1248,72 @@ notifications() → agentNotifications()  // HasMany AgentNotification
 
 ---
 
+### 12.10 نظام المزامنة الذاتية — Agent Self-Sync (2026-06-20)
+
+#### الهدف
+عند كل دخول للوكيل عبر رابطه (`/agent/{uuid}?token=...`)، تُطلق مزامنة لأرقامه من Deals API — نفس الـ API في الاستيراد الجماعي (`GetSubCustomerDeals`) لكن لوكيل واحد فقط. يُعرض spinner أثناء الانتظار ثم ينتقل فوراً للـ dashboard.
+
+#### "مزامنة مرة واحدة لكل session"
+- ✅ الوكيل يفتح الرابط → sync
+- ❌ التنقل بين صفحات البوابة → لا sync
+- ✅ إغلاق المتصفح وإعادة فتح الرابط → session جديد → sync جديد
+
+#### مسار التنفيذ الكامل
+
+```
+/agent/{uuid}?token=... → AgentPortalController::enter()
+  ├─ hash_equals(portal_token, request.token) — constant-time
+  ├─ session()->regenerate() + session['agent_portal_id'] = $uuid
+  └─ redirect → /agent/{uuid}/syncing
+
+/agent/{uuid}/syncing → AgentSyncing (Livewire)
+  ├─ Render فوري: spinner CSS + "جارٍ تحديث بياناتك..."
+  └─ wire:init="runSync"  ← Livewire XHR بعد أول render
+
+AgentSyncing::runSync()  [Livewire XHR — blocks until done]
+  ├─ new ProcessAgentSelfSync($this->agent)->handle()   ← synchronous
+  └─ $this->redirectRoute('agent.portal.dashboard', ...)
+
+ProcessAgentSelfSync::handle()
+  ├─ [is_violator=true] → updateSyncTime() + return
+  ├─ [deals_api_url فارغ] → updateSyncTime() + return
+  ├─ HTTP POST deals_api_url (apiName='GetSubCustomerDeals',
+  │   wildcards=[agent_id, campaign_start_date, today]) — timeout=15s
+  ├─ [result !== 'SUCCESS'] → updateSyncTime() + return
+  ├─ $newLines  = rows.where('task_name','new-order').where('status','Activated').sum('count')
+  ├─ $transfers = rows.where('task_name','number-portability').where('status','Activated').sum('count')
+  └─ Agent::withoutEvents(fn → processRow($newLines, $transfers, $clubs)):
+        $agent->update([transfer_count, new_line_count, current_total])
+        DailySnapshot::where(data_date=today, agent_id)->update([...])   ← لا insert
+        تقييم الأهلية → ClubChangeRequest::create(pending) عند تغيّر المستحَق
+  └─ updateSyncTime()  ← يُسجَّل last_self_sync_at دائماً
+```
+
+#### لماذا `update()` لا `updateOrCreate()` في DailySnapshot؟
+
+`daily_snapshots.import_id` هو `NOT NULL` في الـ migration — لا يقبل `null`. الـ self-sync لا يملك `import_id` حقيقياً:
+- ❌ `DailySnapshot::updateOrCreate(['import_id' => null, ...])` → DB exception عند محاولة INSERT
+- ✅ `DailySnapshot::where(data_date, agent_id)->update([...])` → يُحدِّث الصف الموجود فقط، لا يُنشئ جديداً
+
+> **نتيجة:** إذا لم يُجرَ import يومي لهذا الوكيل بعد، لا يوجد snapshot → `update()` لا يُؤثر (0 rows) → OK.
+
+#### لماذا `wire:init` لا Queue؟
+
+`QUEUE_CONNECTION=database` يتطلب queue worker نشطاً — بدونه يبقى الـ job في `jobs` table أبداً. الحل:
+
+| النهج | المشكلة |
+|---|---|
+| `ProcessAgentSelfSync::dispatch()` + wire:poll | يتطلب queue worker. بدونه: لا معالجة → timeout → redirect بلا sync |
+| `$job->handle()` synchronous + `wire:init` | لا queue worker مطلوب. wire:init يُطلق Livewire XHR → المستخدم يرى spinner خلال استدعاء API الفعلي → redirect فور الانتهاء |
+
+**المقايضة:** مدة API call (≤15s) = المستخدم ينتظر على صفحة المزامنة. إذا فشل API أو timeout → `updateSyncTime()` تُنفَّذ دائماً → redirect للـ dashboard بلا crash.
+
+#### نقطة دقيقة: `import_id` في ClubChangeRequest
+
+`club_change_requests.import_id` هو **nullable** ✅ — يُمرَّر `null` عند self-sync (لا import مرتبط). آمن تماماً في الـ schema.
+
+---
+
 ### 12.9 ملفات البوابة الكاملة
 
 | نوع | الملف |
@@ -1256,15 +1324,17 @@ notifications() → agentNotifications()  // HasMany AgentNotification
 | Migration | `database/migrations/2026_06_18_000002_add_violator_fields_to_agents_table.php` |
 | Migration | `database/migrations/2026_06_18_000003_remove_demotion_timer_fields.php` |
 | Migration | `database/migrations/2026_06_18_000004_add_rejection_violation_to_history_logs_event_type.php` |
+| Migration | `database/migrations/2026_06_19_212705_add_last_self_sync_at_to_agents_table.php` |
 | Middleware | `app/Http/Middleware/AgentPortalAuth.php` |
 | Controller | `app/Http/Controllers/AgentPortalController.php` |
 | Notification | `app/Notifications/AgentPortalNotification.php` |
 | SMS Contract | `app/Contracts/SmsDriver.php` |
 | SMS Channel | `app/Channels/SmsChannel.php` |
 | SMS Drivers | `app/Sms/NullSmsDriver.php` · `app/Sms/UnifonicSmsDriver.php` |
-| Livewire (7) | `app/Livewire/AgentPortal/{AgentPortalPage,AgentDashboard,AgentProgress,AgentNotifications,AgentRewards,AgentOpportunities,AgentHistory,NotificationBell}.php` |
+| Job | `app/Jobs/ProcessAgentSelfSync.php` |
+| Livewire (8) | `app/Livewire/AgentPortal/{AgentPortalPage,AgentSyncing,AgentDashboard,AgentProgress,AgentNotifications,AgentRewards,AgentOpportunities,AgentHistory,NotificationBell}.php` |
 | Layout | `resources/views/layouts/agent-portal.blade.php` |
-| Views (7) | `resources/views/livewire/agent-portal/{dashboard,progress,notifications,rewards,opportunities,history,notification-bell}.blade.php` |
+| Views (8) | `resources/views/livewire/agent-portal/{syncing,dashboard,progress,notifications,rewards,opportunities,history,notification-bell}.blade.php` |
 | Admin Modal | `resources/views/filament/agent/portal-link-modal.blade.php` |
 | Service Worker | `public/sw.js` |
 
@@ -1275,4 +1345,6 @@ notifications() → agentNotifications()  // HasMany AgentNotification
 *آخر تحديث: 2026-05-23 — إصلاح إشعارات ProcessDataImport (TD-006): إضافة AgentNotification لكل الأحداث + $pendingNotifies pattern لإرسال WebPush/SMS بعد الـ transaction. إصلاح NotificationBell تزامن (TD-007). إصلاح AudioContext singleton (TD-008). تحديث §7.1 و§12.6. إصلاح شرط تأهيل النادي (TD-009): إضافة required_transfer_count للفلترة في AgentObserver + ProcessDataImport + AgentResource + CreateAgent — كان عداد التهبيط لا يبدأ عند نسبة تحويل < 60%. تحديث §4.4 و§6.4.*
 *آخر تحديث: 2026-05-23 (مراجعة نظام الإشعارات) — تصحيح اسم جدول `notifications` (كان خطأً `agent_notifications`) في §2.1. إضافة §2.1.1 بـ schema كامل لجدول notifications (15 حقل + indexes). تصحيح enum notification_type من 4 إلى 6 أنواع (milestone, progress). تحديث خريطة الأصوات في §12.5 (نغمة مختلفة لكل نوع). تحديث وصف NotificationBell في §12.4 (max 3 toasts، 6 أنواع). إضافة صف الفرصة الشهرية في جدول §12.6. إضافة §5.8 Console Commands (SyncDailyNumbers + CreateMonthlyMaintenanceOpportunities). إضافة AppSetting model في §5.1.*
 *آخر تحديث: 2026-06-09 (Deals API Auto-Sync + تدقيق شامل) — إضافة §5.5.1 صفحة `DealsApiSettings` (مزامنة أرقام الوكلاء). إضافة §12.3.1 `SyncStatusBadge` (client-driven auto-sync عبر Alpine.js). إضافة `SyncAgentDeals` في §5.8. توثيق `ProcessDistributorSync` job (§5.2). توثيق 4 صفحات API settings ناقصة (§5.5.1). إضافة `AgentsStatsWidget` (§3.3). تحديث DistributorOverviewWidget (§3.4). إضافة DistributorLogin (§3.5). توثيق 22 Blade file في §5.7 (كانت ناقصة). توسيع جدول AppSetting لـ 15 مفتاح مع الاستخدام (§5.8). تحديث DataImport schema (source_type=deals_api، progress، error_details، حذف unique constraint).*
+*آخر تحديث: 2026-06-19 (معالجة Bottlenecks §7.1) — إصلاح TD-002: AgentPolicy → Authenticatable + instanceof guard. إصلاح TD-003: HistoryLog + AuditLog → performUpdate/performDeleteOnModel يرميان LogicException. تحسين Queue Jobs: tries=1 + failed() safety net في ProcessDataImport + ProcessAgentImport. تخفيف Transaction Locking: SET SESSION innodb_lock_wait_timeout=5 قبل DB::transaction. إصلاح N+1 ClubBreakdownWidget: من 13 query → 6 queries. إضافة BulkAction "قبول الترقيات المحددة" في ClubChangeRequestResource. إغلاق Bonus Idempotency (كانت مُعالَجة فعلاً في الكود).*
+*آخر تحديث: 2026-06-20 (الإصدار 3.0 — نظام Agent Self-Sync) — إضافة §12.10 شرح كامل لنظام المزامنة الذاتية. إضافة `ProcessAgentSelfSync` job (synchronous، لا queue) في §5.2. إضافة `AgentSyncing` Livewire component في §12.4. إضافة مسار `/syncing` في §12.3 (10 مسارات). تحديث Auth Flow في §12.2 (enter → /syncing → wire:init → dashboard). تحديث Agent Model §12.7 وجدول agents §2.1 بحقل `last_self_sync_at`. تحديث AppSetting §5.8 لإضافة `ProcessAgentSelfSync` في deals_api_*. إضافة مخاطرة Self-Sync API Latency في §7.1. إصلاحان حرجان: (1) `DailySnapshot.import_id NOT NULL` → استخدام `update()` لا `updateOrCreate()` — كان يمنع إنشاء ClubChangeRequest كلياً. (2) Queue dependency → wire:init synchronous pattern بلا queue worker.*
 *يجب تحديثه عند أي تغيير جوهري في: ProcessDataImport، AgentObserver، بنية الـ Clubs، نظام المصادقة، Agent Portal، Console Commands المجدولة، أو SyncStatusBadge.*

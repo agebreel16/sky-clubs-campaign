@@ -24,7 +24,7 @@ class AgentPortalController extends Controller
         $request->session()->regenerate();
         $request->session()->put('agent_portal_id', $uuid);
 
-        return redirect()->route('agent.portal.dashboard', ['uuid' => $uuid]);
+        return redirect()->route('agent.portal.syncing', ['uuid' => $uuid]);
     }
 
     public function logout(Request $request, string $uuid): RedirectResponse

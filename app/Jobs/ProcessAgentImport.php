@@ -23,8 +23,18 @@ class ProcessAgentImport implements ShouldQueue
 
     public int $timeout = 300;
 
+    public int $tries = 1;
+
     public function __construct(public AgentImportLog $importLog)
     {
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        $this->importLog->update([
+            'status'        => 'failed',
+            'error_message' => 'فشل Job بشكل غير متوقع: ' . $exception->getMessage(),
+        ]);
     }
 
     public function handle(): void

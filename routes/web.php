@@ -7,6 +7,7 @@ use App\Livewire\AgentPortal\AgentNotifications;
 use App\Livewire\AgentPortal\AgentOpportunities;
 use App\Livewire\AgentPortal\AgentProgress;
 use App\Livewire\AgentPortal\AgentRewards;
+use App\Livewire\AgentPortal\AgentSyncing;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -23,6 +24,7 @@ Route::prefix('agent/{uuid}')
     ->middleware(['web', 'agent.portal.auth'])
     ->name('agent.portal.')
     ->group(function () {
+        Route::get('/syncing',       AgentSyncing::class)       ->name('syncing');
         Route::get('/dashboard',     AgentDashboard::class)     ->name('dashboard');
         Route::get('/progress',      AgentProgress::class)      ->name('progress');
         Route::get('/notifications', AgentNotifications::class) ->name('notifications');

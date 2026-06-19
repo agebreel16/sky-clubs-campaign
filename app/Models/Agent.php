@@ -34,6 +34,7 @@ class Agent extends Model
         'is_violator',
         'violator_since',
         'violator_reason',
+        'last_self_sync_at',
     ];
 
     protected function casts(): array
@@ -41,8 +42,9 @@ class Agent extends Model
         return [
             'entry_date'     => 'datetime',
             'is_first_arrival' => 'boolean',
-            'is_violator'    => 'boolean',
-            'violator_since' => 'datetime',
+            'is_violator'      => 'boolean',
+            'violator_since'   => 'datetime',
+            'last_self_sync_at' => 'datetime',
         ];
     }
 

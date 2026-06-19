@@ -38,6 +38,16 @@ class AuditLog extends Model
         ];
     }
 
+    protected function performUpdate(\Illuminate\Database\Eloquent\Builder $query): bool
+    {
+        throw new \LogicException('AuditLog is immutable — updates are forbidden.');
+    }
+
+    protected function performDeleteOnModel(): bool
+    {
+        throw new \LogicException('AuditLog is immutable — deletes are forbidden.');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');

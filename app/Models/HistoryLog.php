@@ -34,6 +34,16 @@ class HistoryLog extends Model
         ];
     }
 
+    protected function performUpdate(\Illuminate\Database\Eloquent\Builder $query): bool
+    {
+        throw new \LogicException('HistoryLog is immutable — updates are forbidden.');
+    }
+
+    protected function performDeleteOnModel(): bool
+    {
+        throw new \LogicException('HistoryLog is immutable — deletes are forbidden.');
+    }
+
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'agent_id');

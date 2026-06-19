@@ -17,6 +17,8 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Illuminate\Database\Eloquent\Collection;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -172,11 +174,48 @@ class ClubChangeRequestResource extends Resource
                         static::rejectRequest($record, $data);
                     }),
             ])
-            ->bulkActions([])
+            ->bulkActions([
+                BulkAction::make('bulk_approve_promotions')
+                    ->label('قبول الترقيات المحددة')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('قبول الترقيات المحددة')
+                    ->modalDescription('سيُقبَل طلبات الترقية المعلّقة فقط. طلبات التهبيط أو المراجعة السابقة تُتجاهل تلقائياً.')
+                    ->deselectRecordsAfterCompletion()
+                    ->action(function (Collection $records) {
+                        $approved = 0;
+                        $skipped  = 0;
+                        $failed   = 0;
+
+                        foreach ($records as $record) {
+                            if ($record->change_type !== 'promotion' || $record->status !== 'pending') {
+                                $skipped++;
+                                continue;
+                            }
+                            try {
+                                static::approveRequest($record, silent: true);
+                                $approved++;
+                            } catch (\Exception $e) {
+                                $failed++;
+                                \Illuminate\Support\Facades\Log::error("Bulk approve failed for {$record->id}: " . $e->getMessage());
+                            }
+                        }
+
+                        $message = "تمت الموافقة على {$approved} طلب ترقية";
+                        if ($skipped) $message .= " | تجاهل {$skipped}";
+                        if ($failed)  $message .= " | فشل {$failed}";
+
+                        Notification::make()
+                            ->success()
+                            ->title($message)
+                            ->send();
+                    }),
+            ])
             ->poll('30s');
     }
 
-    protected static function approveRequest(ClubChangeRequest $record): void
+    protected static function approveRequest(ClubChangeRequest $record, bool $silent = false): void
     {
         // حارس ضد double-approve (race condition أو تحديث الصفحة المزدوج)
         $fresh = $record->fresh();
@@ -285,7 +324,9 @@ class ClubChangeRequestResource extends Resource
             'reviewed_at' => now(),
         ]);
 
-        Notification::make()->success()->title('تم القبول وتطبيق التغيير')->send();
+        if (! $silent) {
+            Notification::make()->success()->title('تم القبول وتطبيق التغيير')->send();
+        }
     }
 
     protected static function rejectRequest(ClubChangeRequest $record, array $data): void
