@@ -44,6 +44,13 @@ class EditAgent extends EditRecord
                         ->required()
                         ->minLength(3)
                         ->maxLength(200),
+
+                    TextInput::make('phone')
+                        ->label('رقم الجوال')
+                        ->nullable()
+                        ->tel()
+                        ->maxLength(20)
+                        ->placeholder('05XXXXXXXX'),
                 ]),
 
             Section::make('بيانات الأرقام')
@@ -88,9 +95,9 @@ class EditAgent extends EditRecord
                     Placeholder::make('campaign_increase_preview')
                         ->label('الزيادة في الحملة')
                         ->content(function ($get): string {
-                            $current = (int) $get('current_total');
-                            $pre     = (int) $get('pre_campaign_count');
-                            return ($current - $pre) . ' خط';
+                            $transfer = (int) $get('transfer_count');
+                            $newLine  = (int) $get('new_line_count');
+                            return ($transfer + $newLine) . ' خط';
                         }),
                 ]),
 
@@ -105,10 +112,6 @@ class EditAgent extends EditRecord
 
                     DateTimePicker::make('entry_date')
                         ->label('تاريخ الدخول للنادي')
-                        ->nullable(),
-
-                    DateTimePicker::make('demotion_timer_start')
-                        ->label('بداية عداد التهبيط')
                         ->nullable(),
 
                     Toggle::make('is_first_arrival')

@@ -116,15 +116,9 @@ class ClubResource extends Resource
                         ->minValue(1),
                 ]),
 
-            Section::make('التهبيط والمكافآت الإضافية')
-                ->columns(3)
+            Section::make('المكافآت الإضافية')
+                ->columns(2)
                 ->schema([
-                    TextInput::make('demotion_timer_days')
-                        ->label('عداد التهبيط (أيام)')
-                        ->required()
-                        ->integer()
-                        ->minValue(1)
-                        ->suffix('أيام'),
                     Toggle::make('has_bonus_opportunities')
                         ->label('يوجد فرص مكافآت')
                         ->reactive(),

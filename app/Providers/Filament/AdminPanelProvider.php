@@ -2,18 +2,19 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Widgets\AtRiskAgentsWidget;
 use App\Filament\Widgets\CampaignStatsOverview;
 use App\Filament\Widgets\ClubStatusWidget;
-use App\Filament\Widgets\ImportStatusWidget;
-use App\Filament\Widgets\TodayActivityWidget;
+use App\Filament\Widgets\PendingChangesWidget;
+use App\Filament\Pages\AdminLogin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
+use Filament\Enums\ThemeMode;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -30,8 +31,8 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->font('Rubik')
-            ->login()
+            ->font('Alexandria')
+            ->login(AdminLogin::class)
             ->colors([
                 'primary' => Color::Sky,
                 'danger'  => Color::Rose,
@@ -41,6 +42,28 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->brandName('SKY CLUB')
             ->favicon(asset('favicon.ico'))
+            ->darkMode(true)
+            ->defaultThemeMode(ThemeMode::Dark)
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => view('filament.partials.admin-theme')->render(),
+            )
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_START,
+                fn (): string => '<div class="sc-live-bar"></div>',
+            )
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_LOGO_BEFORE,
+                fn (): string => view('filament.partials.sidebar-logo-mark')->render(),
+            )
+            ->renderHook(
+                PanelsRenderHook::TOPBAR_END,
+                fn (): string => view('filament.partials.sync-badge')->render(),
+            )
+            ->renderHook(
+                PanelsRenderHook::TOPBAR_END,
+                fn (): string => view('filament.partials.topbar-portal-badge')->render(),
+            )
             ->discoverResources(app_path('Filament/Resources'), 'App\\Filament\\Resources')
             ->discoverPages(app_path('Filament/Pages'), 'App\\Filament\\Pages')
             ->pages([
@@ -50,9 +73,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 CampaignStatsOverview::class,
                 ClubStatusWidget::class,
-                TodayActivityWidget::class,
-                AtRiskAgentsWidget::class,
-                ImportStatusWidget::class,
+                PendingChangesWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -69,10 +90,11 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->navigationGroups([
+                'إدارة الوكلاء',
                 'إدارة الحملة',
-                'المالية والمكافآت',
                 'إدارة البيانات',
                 'إدارة النظام',
+                'إعدادات API',
             ]);
     }
 }

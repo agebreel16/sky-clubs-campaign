@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sky Clubs — API Integration Guide</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      background: #f0f2f5;
+      color: #1c1e2b;
+      line-height: 1.75;
+      padding: 48px 20px 80px;
+    }
+
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    .doc-header {
+      background: #0f3460;
+      color: #fff;
+      border-radius: 12px 12px 0 0;
+      padding: 40px 48px 36px;
+    }
+
+    .doc-header h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+    }
+
+    .doc-header .meta {
+      display: flex;
+      gap: 20px;
+      font-size: 0.82rem;
+      color: #8aaac8;
+      margin-top: 10px;
+    }
+
+    .doc-header .meta span::before { content: '· '; }
+    .doc-header .meta span:first-child::before { content: ''; }
+
+    /* ── Sections ── */
+    .card {
+      background: #fff;
+      border-left: 1px solid #e2e6ef;
+      border-right: 1px solid #e2e6ef;
+      border-bottom: 1px solid #e2e6ef;
+      padding: 36px 48px;
+    }
+
+    .card:last-of-type {
+      border-radius: 0 0 12px 12px;
+    }
+
+    .card + .card {
+      border-top: 2px solid #f0f2f5;
+    }
+
+    .section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #8a96aa;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #0f3460;
+      margin-bottom: 6px;
+    }
+
+    h2 .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: #e8f0fc;
+      color: #0f3460;
+      padding: 2px 10px;
+      border-radius: 20px;
+      vertical-align: middle;
+      margin-right: 8px;
+      letter-spacing: 0.4px;
+    }
+
+    .subtitle {
+      font-size: 0.88rem;
+      color: #5a6478;
+      margin-bottom: 24px;
+    }
+
+    h3 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #8a96aa;
+      margin: 28px 0 10px;
+    }
+
+    h3:first-of-type { margin-top: 0; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: #111827;
+      color: #e2e8f0;
+      padding: 18px 22px;
+      border-radius: 8px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.84rem;
+      line-height: 1.65;
+      direction: ltr;
+      text-align: left;
+      overflow-x: auto;
+      margin: 4px 0;
+    }
+
+    pre .k  { color: #7dd3fc; }   /* key   */
+    pre .s  { color: #86efac; }   /* string */
+    pre .n  { color: #fcd34d; }   /* number */
+    pre .c  { color: #6b7280; font-style: italic; } /* comment */
+    pre .m  { color: #c084fc; }   /* method/verb */
+    pre .h  { color: #94a3b8; }   /* header name */
+    pre .hv { color: #fca5a5; }   /* header value placeholder */
+
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background: #eef1f7;
+      color: #c0392b;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.84rem;
+      direction: ltr;
+      display: inline-block;
+    }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      margin: 4px 0;
+    }
+
+    thead th {
+      background: #f7f8fb;
+      color: #374151;
+      font-weight: 700;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 10px 14px;
+      text-align: right;
+      border-bottom: 2px solid #e2e6ef;
+    }
+
+    tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f0f2f5;
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #fafbfd; }
+
+    .field-name {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.84rem;
+      color: #c0392b;
+      white-space: nowrap;
+    }
+
+    .type {
+      font-size: 0.8rem;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+
+    .pill {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 20px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .pill-req  { background: #dcfce7; color: #166534; }
+    .pill-opt  { background: #fef9c3; color: #713f12; }
+
+    /* ── Callout boxes ── */
+    .callout {
+      border-right: 3px solid #0f3460;
+      background: #f5f8ff;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 0.86rem;
+      color: #1e3a5f;
+      margin: 16px 0;
+    }
+
+    .callout.warn {
+      border-color: #d97706;
+      background: #fffbeb;
+      color: #7c4a03;
+    }
+
+    .callout.rule {
+      border-color: #6366f1;
+      background: #f5f3ff;
+      color: #3730a3;
+    }
+
+    /* ── Status codes ── */
+    .status-row td:first-child {
+      font-family: 'Consolas', monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      width: 70px;
+    }
+
+    .ok  { color: #16a34a; }
+    .err { color: #dc2626; }
+
+    /* ── Auth grid ── */
+    .auth-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 4px 0 20px;
+    }
+
+    .auth-item {
+      background: #f7f8fb;
+      border: 1px solid #e2e6ef;
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .auth-item .lbl {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #8a96aa;
+      margin-bottom: 3px;
+    }
+
+    .auth-item .val {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #0f3460;
+    }
+
+    /* ── Divider ── */
+    hr {
+      border: none;
+      border-top: 1px solid #f0f2f5;
+      margin: 28px 0;
+    }
+
+    /* ── Footer ── */
+    .doc-footer {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-top: 28px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+  <div class="doc-header">
+    <h1>Sky Clubs — API Integration Guide</h1>
+
+  </div>
+
+  <!-- ══ AUTH ════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="section-label">المصادقة والاتصال</div>
+    <div class="auth-grid">
+      <div class="auth-item">
+        <div class="lbl">البروتوكول</div>
+        <div class="val">HTTPS</div>
+      </div>
+      <div class="auth-item">
+        <div class="lbl">المصادقة</div>
+        <div class="val">Bearer Token</div>
+      </div>
+      <div class="auth-item">
+        <div class="lbl">طريقة الطلب</div>
+        <div class="val">GET</div>
+      </div>
+      <div class="auth-item">
+        <div class="lbl">صيغة الرد</div>
+        <div class="val">JSON · UTF-8</div>
+      </div>
+    </div>
+
+    <h3>كل طلب يحمل</h3>
+    <pre><span class="h">Authorization:</span> <span class="hv">Bearer {TOKEN}</span></pre>
+
+    <h3>Query Parameter مشترك</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>الباراميتر</th>
+          <th>النوع</th>
+          <th>الوصف</th>
+          <th>إلزامي؟</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="field-name">from_date</td>
+          <td class="type">YYYY-MM-DD</td>
+          <td>تاريخ بداية الحملة — القيم التراكمية (<code>transfer_count</code>، <code>new_line_count</code>) تُحسَب منذ هذا التاريخ</td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══ API 1 ════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="section-label">Endpoint 1</div>
+    <h2><span class="tag">GET</span> البيانات اليومية للوكلاء</h2>
+    <p class="subtitle">يُستدعى يومياً لجلب أرقام جميع الوكلاء النشطين.</p>
+
+    <h3>الطلب</h3>
+    <pre><span class="m">GET</span> {BASE_URL}/daily-agents?<span class="k">from_date</span>=YYYY-MM-DD
+<span class="h">Authorization:</span> <span class="hv">Bearer {TOKEN}</span></pre>
+
+    <h3>صيغة الرد</h3>
+    <pre><span class="c">// مصفوفة مباشرة</span>
+[ { ... }, { ... } ]
+
+<span class="c">// أو داخل مفتاح</span>
+{ <span class="k">"data"</span>: [ { ... } ] }
+{ <span class="k">"agents"</span>: [ { ... } ] }</pre>
+
+    <h3>بنية كل عنصر</h3>
+    <pre>{
+  <span class="k">"agent_id"</span>:           <span class="s">"550e8400-e29b-41d4-a716-446655440000"</span>,
+  <span class="k">"current_total"</span>:      <span class="n">130</span>,
+  <span class="k">"transfer_count"</span>:     <span class="n">20</span>,
+  <span class="k">"new_line_count"</span>:     <span class="n">30</span>,
+  <span class="k">"pre_campaign_count"</span>: <span class="n">80</span>
+}</pre>
+
+    <h3>الحقول</h3>
+    <table>
+      <thead>
+        <tr><th>الحقل</th><th>النوع</th><th>الوصف</th><th>إلزامي؟</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="field-name">agent_id</td>
+          <td class="type">UUID string</td>
+          <td>المعرّف الفريد للوكيل</td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">current_total</td>
+          <td class="type">integer ≥ 0</td>
+          <td>إجمالي الخطوط النشطة حتى تاريخ اليوم</td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">transfer_count</td>
+          <td class="type">integer ≥ 0</td>
+          <td>خطوط التحويل المضافة منذ <code>from_date</code> — <strong>تراكمي</strong></td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">new_line_count</td>
+          <td class="type">integer ≥ 0</td>
+          <td>الخطوط الجديدة المضافة منذ <code>from_date</code> — <strong>تراكمي</strong></td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">pre_campaign_count</td>
+          <td class="type">integer ≥ 0</td>
+          <td>الخطوط التي كانت نشطة قبل تاريخ <code>from_date</code> — تتناقص فقط ولا ترتفع</td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout rule" style="margin-top:20px;">
+      <strong>قاعدة:</strong>
+      <code>current_total = pre_campaign_count + transfer_count + new_line_count</code><br>
+      <code>transfer_count</code> و <code>new_line_count</code> لا تتناقص إلا عند فسخ خطوط فعلي.
+    </div>
+
+    <h3>مثال</h3>
+    <div class="callout">
+      وكيل أضاف 20 تحويل و30 خطاً جديداً، وفقد 10 من خطوطه القديمة (كانت 80):<br><br>
+      <code>pre_campaign_count = 70</code> &nbsp;·&nbsp;
+      <code>transfer_count = 20</code> &nbsp;·&nbsp;
+      <code>new_line_count = 30</code> &nbsp;·&nbsp;
+      <code>current_total = 120</code>
+    </div>
+  </div>
+
+  <!-- ══ API 2 ════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="section-label">Endpoint 2</div>
+    <h2><span class="tag">GET</span> بيانات الوكلاء للاستيراد الأولي</h2>
+    <p class="subtitle">يُستدعى عند بدء الحملة أو عند إضافة وكلاء جدد لجلب بياناتهم الكاملة.</p>
+
+    <h3>الطلب</h3>
+    <pre><span class="m">GET</span> {BASE_URL}/import-agents?<span class="k">from_date</span>=YYYY-MM-DD
+<span class="h">Authorization:</span> <span class="hv">Bearer {TOKEN}</span></pre>
+
+    <h3>بنية كل عنصر</h3>
+    <pre>{
+  <span class="k">"agent_id"</span>:           <span class="s">"550e8400-e29b-41d4-a716-446655440001"</span>,
+  <span class="k">"agent_name"</span>:         <span class="s">"أحمد محمد"</span>,
+  <span class="k">"phone"</span>:              <span class="s">"0501234567"</span>,
+  <span class="k">"baseline_count"</span>:     <span class="n">100</span>,
+  <span class="k">"pre_campaign_count"</span>: <span class="n">100</span>,
+  <span class="k">"current_total"</span>:      <span class="n">100</span>,
+  <span class="k">"transfer_count"</span>:     <span class="n">0</span>,
+  <span class="k">"new_line_count"</span>:     <span class="n">0</span>,
+  <span class="k">"distributor_id"</span>:     <span class="s">"660e8400-e29b-41d4-a716-446655440002"</span>
+}</pre>
+
+    <h3>الحقول</h3>
+    <table>
+      <thead>
+        <tr><th>الحقل</th><th>النوع</th><th>الوصف</th><th>إلزامي؟</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="field-name">agent_id</td>
+          <td class="type">UUID string</td>
+          <td>المعرّف الفريد للوكيل</td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">agent_name</td>
+          <td class="type">string</td>
+          <td>الاسم الكامل للوكيل</td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">baseline_count</td>
+          <td class="type">integer &gt; 0</td>
+          <td>إجمالي الخطوط النشطة يوم <code>from_date</code> — <strong>لا يتغير أبداً</strong></td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">pre_campaign_count</td>
+          <td class="type">integer ≥ 0</td>
+          <td>يساوي <code>baseline_count</code> عند الاستيراد الأول</td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">current_total</td>
+          <td class="type">integer ≥ 0</td>
+          <td>إجمالي الخطوط النشطة وقت إرسال البيانات</td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">transfer_count</td>
+          <td class="type">integer ≥ 0</td>
+          <td>خطوط التحويل منذ <code>from_date</code></td>
+          <td><span class="pill pill-opt">اختياري</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">new_line_count</td>
+          <td class="type">integer ≥ 0</td>
+          <td>الخطوط الجديدة منذ <code>from_date</code></td>
+          <td><span class="pill pill-opt">اختياري</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">distributor_id</td>
+          <td class="type">UUID string</td>
+          <td>معرّف الموزع المسؤول عن الوكيل</td>
+          <td><span class="pill pill-opt">اختياري</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">phone</td>
+          <td class="type">string ≤ 20</td>
+          <td>رقم جوال الوكيل</td>
+          <td><span class="pill pill-opt">اختياري</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout rule" style="margin-top:20px;">
+      <strong>قواعد:</strong><br>
+      <code>baseline_count = pre_campaign_count</code> عند الاستيراد الأول<br>
+      <code>current_total ≥ pre_campaign_count</code><br>
+      <code>pre_campaign_count ≤ baseline_count</code>
+    </div>
+  </div>
+
+  <!-- ══ API 3 ════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="section-label">Endpoint 3</div>
+    <h2><span class="tag">GET</span> بيانات الموزعين</h2>
+    <p class="subtitle">يُستدعى لمزامنة قائمة الموزعين — يُضاف كل موزع غير موجود، ويُتخطى من هاتفه مسجّل مسبقاً.</p>
+
+    <h3>الطلب</h3>
+    <pre><span class="m">GET</span> {BASE_URL}/distributors
+<span class="h">Authorization:</span> <span class="hv">Bearer {TOKEN}</span></pre>
+
+    <h3>صيغة الرد</h3>
+    <pre><span class="c">// مصفوفة مباشرة</span>
+[ { ... }, { ... } ]
+
+<span class="c">// أو داخل مفتاح</span>
+{ <span class="k">"distributors"</span>: [ { ... } ] }
+{ <span class="k">"data"</span>: [ { ... } ] }</pre>
+
+    <h3>بنية كل عنصر</h3>
+    <pre>{
+  <span class="k">"distributor_id"</span>: <span class="s">"660e8400-e29b-41d4-a716-446655440002"</span>,
+  <span class="k">"name"</span>:            <span class="s">"محمد أحمد"</span>,
+  <span class="k">"phone"</span>:           <span class="s">"0501234567"</span>,
+  <span class="k">"email"</span>:           <span class="s">"mohammed@example.com"</span>,
+  <span class="k">"region"</span>:          <span class="s">"الشمال"</span>
+}</pre>
+
+    <h3>الحقول</h3>
+    <table>
+      <thead>
+        <tr><th>الحقل</th><th>النوع</th><th>الوصف</th><th>إلزامي؟</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="field-name">distributor_id</td>
+          <td class="type">UUID string</td>
+          <td>المعرّف الفريد للموزع — <strong>نفس UUID المستخدم في بيانات الوكلاء</strong></td>
+          <td><span class="pill pill-req">إلزامي</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">name</td>
+          <td class="type">string ≤ 200</td>
+          <td>اسم الموزع الكامل</td>
+          <td><span class="pill pill-opt">اختياري</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">phone</td>
+          <td class="type">string ≤ 20</td>
+          <td>رقم الجوال</td>
+          <td><span class="pill pill-opt">اختياري</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">email</td>
+          <td class="type">string (email)</td>
+          <td>البريد الإلكتروني — يجب أن يكون فريداً إذا أُرسل</td>
+          <td><span class="pill pill-opt">اختياري</span></td>
+        </tr>
+        <tr>
+          <td class="field-name">region</td>
+          <td class="type">string ≤ 100</td>
+          <td>المنطقة الجغرافية</td>
+          <td><span class="pill pill-opt">اختياري</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout rule" style="margin-top:20px;">
+      <strong>قاعدة:</strong> موزع بنفس الـ <code>distributor_id</code> موجود مسبقاً → يُتخطى تلقائياً بدون خطأ.<br>
+      <strong>مهم:</strong> الـ <code>distributor_id</code> هنا هو نفس UUID المُرسَل في حقل <code>distributor_id</code> ببيانات الوكلاء (Endpoint 2).
+    </div>
+  </div>
+
+  <!-- ══ STATUS CODES ══════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="section-label">أكواد الاستجابة</div>
+    <table>
+      <thead>
+        <tr><th>الكود</th><th>المعنى</th></tr>
+      </thead>
+      <tbody class="status-row">
+        <tr><td class="ok">200</td><td>نجح الطلب — البيانات في الـ body</td></tr>
+        <tr><td class="err">400</td><td>طلب غير صالح — <code>from_date</code> مفقود أو بصيغة خاطئة</td></tr>
+        <tr><td class="err">401</td><td>Token غير صالح أو منتهي الصلاحية</td></tr>
+        <tr><td class="err">403</td><td>صلاحيات غير كافية</td></tr>
+        <tr><td class="err">500</td><td>خطأ في السيرفر</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="doc-footer">
+    Sky Clubs Campaign &nbsp;·&nbsp; Integration Guide v1.3 &nbsp;·&nbsp; 2026
+  </div>
+
+</div>
+</body>
+</html>

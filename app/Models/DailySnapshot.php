@@ -51,6 +51,6 @@ class DailySnapshot extends Model
 
     public function getCampaignIncreaseAttribute(): int
     {
-        return $this->current_total - $this->pre_campaign_count;
+        return $this->transfer_count + $this->new_line_count;
     }
 }

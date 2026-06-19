@@ -9,36 +9,31 @@ use App\Models\HistoryLog;
 use App\Models\Opportunity;
 use App\Models\Reward;
 use App\Models\AgentNotification;
+use App\Notifications\AgentPortalNotification;
 
 class AgentObserver
 {
     public function updated(Agent $agent): void
     {
-        // 1. Detect Club Change (Promotion / Demotion)
+        // 1. Detect direct Club Change (admin edits current_club_id in form)
         if ($agent->wasChanged('current_club_id')) {
             $this->handleClubChange($agent);
         }
 
-        // 2. Detect Demotion Timer Start (warning)
-        if ($agent->wasChanged('demotion_timer_start') && $agent->demotion_timer_start !== null) {
-            $this->handleDemotionTimerStart($agent);
+        // 2. Detect violator removal (admin unchecks is_violator in EditAgent)
+        if ($agent->wasChanged('is_violator') && ! $agent->is_violator) {
+            $this->handleViolatorRemoval($agent);
         }
 
-        // 3. Audit Log for manual changes
+        // 3. Audit Log (للتعديلات اليدوية — Import يعمل بـ withoutEvents فلا يصل هنا)
         $this->logAudit($agent);
 
-        // 4. After data update, check promotion/demotion eligibility
-        $trackedFields = ['current_total', 'transfer_count', 'new_line_count', 'pre_campaign_count'];
-        $hasDataChange = false;
-        foreach ($trackedFields as $field) {
-            if ($agent->wasChanged($field)) {
-                $hasDataChange = true;
-                break;
-            }
-        }
-
-        if ($hasDataChange) {
-            $this->checkAndApplyClubChanges($agent);
+        // 4. إعادة تقييم النادي إذا تغيّرت الأرقام يدوياً — ترقية فقط، لا تهبيط آلي
+        // الحارس: إذا غيّر الأدمن current_club_id يدوياً في نفس الحفظ، يتجاوز هذا الشرط
+        // لمنع إنشاء Reward+Opportunity مكررة (handleClubChange يتولى ذلك أعلاه)
+        if ($agent->wasChanged(['current_total', 'transfer_count', 'new_line_count', 'pre_campaign_count'])
+            && ! $agent->wasChanged('current_club_id')) {
+            $this->checkAndApplyPromotion($agent);
         }
     }
 
@@ -50,7 +45,6 @@ class AgentObserver
         $fromClub = $fromClubId ? Club::find($fromClubId) : null;
         $toClub   = $toClubId   ? Club::find($toClubId)   : null;
 
-        // Determine event type
         if (!$toClub) {
             $eventType = 'demotion';
         } elseif (!$fromClub) {
@@ -59,39 +53,26 @@ class AgentObserver
             $eventType = $toClub->club_order > $fromClub->club_order ? 'promotion' : 'demotion';
         }
 
-        // Log to History
         HistoryLog::create([
             'agent_id'        => $agent->agent_id,
             'event_type'      => $eventType,
             'from_club_id'    => $fromClubId,
             'to_club_id'      => $toClubId,
-            'reason'          => $eventType === 'promotion' ? 'تحقيق شروط الترقية' : 'عدم الحفاظ على النشاط',
+            'reason'          => $eventType === 'promotion' ? 'تحقيق شروط الترقية' : 'قرار إداري',
             'event_timestamp' => now(),
         ]);
 
-        // Generate Reward & Opportunities on Promotion
         if ($eventType === 'promotion' && $toClub) {
-            // Base reward
             Reward::create([
-                'agent_id'       => $agent->agent_id,
-                'club_id'        => $toClubId,
-                'amount'         => $toClub->base_reward_amount,
-                'is_first_arrival' => false,
-                'payment_status' => 'pending',
+                'agent_id'         => $agent->agent_id,
+                'club_id'          => $toClubId,
+                'amount'           => $agent->is_first_arrival
+                                        ? $toClub->first_arrival_reward_amount
+                                        : $toClub->base_reward_amount,
+                'is_first_arrival' => $agent->is_first_arrival,
+                'payment_status'   => 'pending',
             ]);
 
-            // First arrival bonus
-            if ($agent->is_first_arrival) {
-                Reward::create([
-                    'agent_id'        => $agent->agent_id,
-                    'club_id'         => $toClubId,
-                    'amount'          => $toClub->first_arrival_reward_amount,
-                    'is_first_arrival' => true,
-                    'payment_status'  => 'pending',
-                ]);
-            }
-
-            // Entry opportunities (lottery tickets)
             $entryCount = $toClub->entry_opportunities ?? 1;
             for ($i = 0; $i < $entryCount; $i++) {
                 Opportunity::create([
@@ -103,7 +84,6 @@ class AgentObserver
                 ]);
             }
 
-            // First arrival opportunity
             if ($agent->is_first_arrival) {
                 Opportunity::create([
                     'agent_id'    => $agent->agent_id,
@@ -113,160 +93,140 @@ class AgentObserver
                     'is_active'   => true,
                 ]);
             }
-        }
 
-        // Notification
-        AgentNotification::create([
-            'agent_id'          => $agent->agent_id,
-            'club_id'           => $toClubId,
-            'notification_type' => $eventType,
-            'title'             => $eventType === 'promotion' ? 'مبروك الترقية!' : 'تنبيه: هبوط النادي',
-            'message'           => $eventType === 'promotion'
-                ? "تهانينا! لقد انضممت إلى {$toClub->club_name}."
-                : 'نأسف لإبلاغك بالهبوط.' . ($toClub ? " إلى {$toClub->club_name}" : ' خارج الأندية.'),
-            'category'          => $toClubId ? 'in_club' : 'outside_clubs',
-            'sent_at'           => now(),
-        ]);
+            // الإشعار يُرسَل للترقية فقط
+            $notifTitle = 'مبروك الترقية!';
+            $notifBody  = "تهانينا! لقد انضممت إلى {$toClub->club_name}.";
+
+            AgentNotification::create([
+                'agent_id'          => $agent->agent_id,
+                'club_id'           => $toClubId,
+                'notification_type' => 'promotion',
+                'title'             => $notifTitle,
+                'body'              => $notifBody,
+                'category'          => 'in_club',
+                'sent_at'           => now(),
+            ]);
+
+            if ($agent->portal_token) {
+                $agent->notify(new AgentPortalNotification(title: $notifTitle, body: $notifBody));
+            }
+        }
+        // التهبيط اليدوي: HistoryLog فقط — لا إشعار للوكيل
     }
 
-    private function handleDemotionTimerStart(Agent $agent): void
+    private function handleViolatorRemoval(Agent $agent): void
     {
+        // سجّل القيم القديمة قبل مسحها (Query Builder لا يُحدِّث $agent فلن تظهر في logAudit)
+        AuditLog::create([
+            'user_id'     => auth()->id(),
+            'action'      => 'update',
+            'model_type'  => 'Agent',
+            'model_id'    => $agent->agent_id,
+            'old_values'  => [
+                'violator_since'  => $agent->violator_since,
+                'violator_reason' => $agent->violator_reason,
+            ],
+            'new_values'  => ['violator_since' => null, 'violator_reason' => null],
+            'ip_address'  => request()->ip(),
+            'user_agent'  => request()->userAgent(),
+            'description' => 'إلغاء تصنيف المخالفة',
+            'status'      => 'success',
+        ]);
+
+        Agent::where('agent_id', $agent->agent_id)->update([
+            'violator_since'  => null,
+            'violator_reason' => null,
+        ]);
+
         HistoryLog::create([
             'agent_id'        => $agent->agent_id,
-            'event_type'      => 'warning',
+            'event_type'      => 'achievement',
             'from_club_id'    => null,
             'to_club_id'      => $agent->current_club_id,
-            'reason'          => 'نزول نسبة التحويل عن 60%',
+            'reason'          => 'إلغاء تصنيف المخالفة',
             'event_timestamp' => now(),
         ]);
-
-        AgentNotification::create([
-            'agent_id'          => $agent->agent_id,
-            'club_id'           => $agent->current_club_id,
-            'notification_type' => 'warning',
-            'title'             => 'تحذير: عداد التهبيط بدأ',
-            'message'           => 'نسبة التحويل انخفضت. لديك مهلة محددة للتحسين.',
-            'category'          => 'in_club',
-            'sent_at'           => now(),
-        ]);
+        // لا إشعار للوكيل عند إلغاء المخالفة
     }
 
-    private function checkAndApplyClubChanges(Agent $agent): void
+    private function checkAndApplyPromotion(Agent $agent): void
     {
-        // Reload fresh to avoid stale data
         $agent->refresh();
 
-        $clubs          = Club::where('is_active', true)->orderBy('club_order')->get();
-        $campaignIncrease = $agent->current_total - $agent->pre_campaign_count;
-        $currentClub    = $agent->club;
-        $currentOrder   = $currentClub ? (int) $currentClub->club_order : 0;
+        $clubs            = Club::where('is_active', true)->orderBy('club_order')->get();
+        $campaignIncrease = $agent->transfer_count + $agent->new_line_count;
+        $currentClub      = $agent->club;
+        $currentOrder     = $currentClub ? (int) $currentClub->club_order : 0;
 
-        // Find the highest club the agent qualifies for
-        $bestClub  = null;
+        $bestClub = null;
         foreach ($clubs as $club) {
-            if ($campaignIncrease >= (int) $club->required_increase) {
+            if ($campaignIncrease >= (int) $club->required_increase
+                && $agent->transfer_count >= (int) $club->required_transfer_count) {
                 $bestClub = $club;
             }
         }
 
         $newOrder = $bestClub ? (int) $bestClub->club_order : 0;
 
-        // PROMOTION
-        if ($newOrder > $currentOrder) {
-            $isFirst = Agent::where('current_club_id', $bestClub->club_id)->count() < $bestClub->first_arrival_count;
-
-            // Bypass observer loop with query builder
-            Agent::where('agent_id', $agent->agent_id)->update([
-                'current_club_id'      => $bestClub->club_id,
-                'entry_date'           => now(),
-                'demotion_timer_start' => null,
-                'is_first_arrival'     => $isFirst,
-            ]);
-
-            HistoryLog::create([
-                'agent_id'        => $agent->agent_id,
-                'event_type'      => 'promotion',
-                'from_club_id'    => $agent->current_club_id,
-                'to_club_id'      => $bestClub->club_id,
-                'reason'          => "تحقيق {$campaignIncrease} خط جديد",
-                'event_timestamp' => now(),
-            ]);
-
-            Reward::create([
-                'agent_id'        => $agent->agent_id,
-                'club_id'         => $bestClub->club_id,
-                'amount'          => $bestClub->base_reward_amount,
-                'is_first_arrival' => false,
-                'payment_status'  => 'pending',
-            ]);
-
-            $entryCount = $bestClub->entry_opportunities ?? 1;
-            for ($i = 0; $i < $entryCount; $i++) {
-                Opportunity::create([
-                    'agent_id'    => $agent->agent_id,
-                    'club_id'     => $bestClub->club_id,
-                    'type'        => 'entry',
-                    'earned_date' => now(),
-                    'is_active'   => true,
-                ]);
-            }
-
+        // ترقية فقط — التهبيط يُعالَج عبر Import Job وطلبات المراجعة
+        if ($newOrder <= $currentOrder) {
             return;
         }
 
-        // DEMOTION TIMER LOGIC (only for agents already in a club)
-        if ($currentClub && $newOrder < $currentOrder) {
-            $transferPct = $currentClub->required_increase > 0
-                ? ($agent->transfer_count / $currentClub->required_increase) * 100
-                : 100;
+        $isFirst = Agent::where('current_club_id', $bestClub->club_id)->count() < $bestClub->first_arrival_count;
 
-            if ($transferPct < 60 && $agent->demotion_timer_start === null) {
-                // Start timer
-                Agent::where('agent_id', $agent->agent_id)->update([
-                    'demotion_timer_start' => now(),
-                ]);
+        Agent::where('agent_id', $agent->agent_id)->update([
+            'current_club_id' => $bestClub->club_id,
+            'entry_date'      => now(),
+            'is_first_arrival' => $isFirst,
+        ]);
 
-                HistoryLog::create([
-                    'agent_id'        => $agent->agent_id,
-                    'event_type'      => 'warning',
-                    'from_club_id'    => null,
-                    'to_club_id'      => $agent->current_club_id,
-                    'reason'          => 'نسبة التحويل أقل من 60%',
-                    'event_timestamp' => now(),
-                ]);
-            } elseif ($agent->demotion_timer_start !== null) {
-                $daysElapsed = (int) $agent->demotion_timer_start->diffInDays(now());
-                if ($daysElapsed >= $currentClub->demotion_timer_days) {
-                    // Execute demotion
-                    Agent::where('agent_id', $agent->agent_id)->update([
-                        'current_club_id'      => $bestClub ? $bestClub->club_id : null,
-                        'demotion_timer_start' => null,
-                    ]);
+        HistoryLog::create([
+            'agent_id'        => $agent->agent_id,
+            'event_type'      => 'promotion',
+            'from_club_id'    => $agent->current_club_id,
+            'to_club_id'      => $bestClub->club_id,
+            'reason'          => "تحقيق {$campaignIncrease} خط جديد",
+            'event_timestamp' => now(),
+        ]);
 
-                    HistoryLog::create([
-                        'agent_id'        => $agent->agent_id,
-                        'event_type'      => 'demotion',
-                        'from_club_id'    => $currentClub->club_id,
-                        'to_club_id'      => $bestClub ? $bestClub->club_id : null,
-                        'reason'          => 'انتهاء مهلة الإنذار',
-                        'event_timestamp' => now(),
-                    ]);
-                }
-            }
-        } elseif ($currentClub && $agent->demotion_timer_start !== null) {
-            // Recovered: reset timer
-            Agent::where('agent_id', $agent->agent_id)->update([
-                'demotion_timer_start' => null,
+        Reward::create([
+            'agent_id'         => $agent->agent_id,
+            'club_id'          => $bestClub->club_id,
+            'amount'           => $isFirst
+                                    ? $bestClub->first_arrival_reward_amount
+                                    : $bestClub->base_reward_amount,
+            'is_first_arrival' => $isFirst,
+            'payment_status'   => 'pending',
+        ]);
+
+        $entryCount = $bestClub->entry_opportunities ?? 1;
+        for ($i = 0; $i < $entryCount; $i++) {
+            Opportunity::create([
+                'agent_id'    => $agent->agent_id,
+                'club_id'     => $bestClub->club_id,
+                'type'        => 'entry',
+                'earned_date' => now(),
+                'is_active'   => true,
             ]);
+        }
 
-            HistoryLog::create([
-                'agent_id'        => $agent->agent_id,
-                'event_type'      => 'achievement',
-                'from_club_id'    => null,
-                'to_club_id'      => $agent->current_club_id,
-                'reason'          => 'استعادة مستوى النشاط المطلوب',
-                'event_timestamp' => now(),
-            ]);
+        $notifTitle = 'مبروك الترقية!';
+        $notifBody  = "تهانينا! لقد انضممت إلى {$bestClub->club_name}.";
+
+        AgentNotification::create([
+            'agent_id'          => $agent->agent_id,
+            'club_id'           => $bestClub->club_id,
+            'notification_type' => 'promotion',
+            'title'             => $notifTitle,
+            'body'              => $notifBody,
+            'category'          => 'in_club',
+            'sent_at'           => now(),
+        ]);
+
+        if ($agent->portal_token) {
+            $agent->notify(new AgentPortalNotification(title: $notifTitle, body: $notifBody));
         }
     }
 

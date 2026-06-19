@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(C:/laragon/bin/php/php-8.5.5-Win32-vs17-x64/php.exe c:/laragon/www/sky-clubs-campaign/artisan migrate:status)"
-    ]
-  }
-}

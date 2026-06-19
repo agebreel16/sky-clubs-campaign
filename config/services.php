@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'sms' => [
+        'driver' => env('SMS_DRIVER', 'null'),
+    ],
+
+    'unifonic' => [
+        'api_key'   => env('UNIFONIC_API_KEY'),
+        'sender_id' => env('UNIFONIC_SENDER_ID'),
+    ],
+
 ];

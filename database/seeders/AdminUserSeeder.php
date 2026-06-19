@@ -32,6 +32,6 @@ class AdminUserSeeder extends Seeder
         $this->command->line('   Email:    admin@skyclubs.test');
         $this->command->line('   Password: Admin@12345');
         $this->command->line('   Role:     super_admin');
-        $this->command->line('   URL:      http://sky-clubs-campaign.test/admin');
+        $this->command->line('   URL:      http://sky-clubs.test/admin');
     }
 }

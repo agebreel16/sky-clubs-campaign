@@ -19,6 +19,8 @@ class DataImport extends Model
         'source_type',
         'original_filename',
         'stored_filepath',
+        'api_url',
+        'api_token',
         'file_hash',
         'total_agents',
         'processed',
@@ -28,16 +30,20 @@ class DataImport extends Model
         'warnings_count',
         'errors_count',
         'status',
+        'progress',
         'error_message',
         'uploaded_by',
         'processed_by',
         'processing_duration_ms',
+        'error_details',
     ];
 
     protected function casts(): array
     {
         return [
-            'data_date' => 'date',
+            'data_date'    => 'date',
+            'api_token'    => 'encrypted',
+            'error_details' => 'array',
         ];
     }
 

@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="Generator" content="Microsoft Word 15">
+<title>توثيق APIs — البرنامج الرئيسي لحملة Sky Clubs</title>
+<style>
+  body {
+    font-family: 'Arial', sans-serif;
+    font-size: 11pt;
+    direction: rtl;
+    margin: 2.5cm 3cm;
+    color: #1a1a1a;
+    line-height: 1.6;
+  }
+
+  h1 {
+    font-size: 18pt;
+    color: #0d3b6e;
+    border-bottom: 3px solid #0d3b6e;
+    padding-bottom: 8px;
+    margin-top: 0;
+  }
+
+  h2 {
+    font-size: 14pt;
+    color: #1a5276;
+    background-color: #d6eaf8;
+    padding: 8px 12px;
+    border-right: 5px solid #1a5276;
+    margin-top: 30px;
+  }
+
+  h3 {
+    font-size: 12pt;
+    color: #154360;
+    margin-top: 18px;
+  }
+
+  .meta-box {
+    background-color: #f2f3f4;
+    border: 1px solid #bdc3c7;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    font-size: 10pt;
+  }
+
+  .meta-box table {
+    width: 100%;
+    border: none;
+  }
+
+  .meta-box td {
+    border: none;
+    padding: 2px 8px;
+  }
+
+  .endpoint-box {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    font-size: 10pt;
+    padding: 12px 16px;
+    margin: 12px 0;
+    direction: ltr;
+    text-align: left;
+    border-radius: 4px;
+  }
+
+  .endpoint-box .method {
+    color: #2ecc71;
+    font-weight: bold;
+  }
+
+  .endpoint-box .url {
+    color: #3498db;
+  }
+
+  .endpoint-box .comment {
+    color: #95a5a6;
+  }
+
+  .json-box {
+    background-color: #fdfefe;
+    border: 1px solid #bdc3c7;
+    border-right: 4px solid #3498db;
+    font-family: 'Courier New', monospace;
+    font-size: 9.5pt;
+    padding: 12px 16px;
+    margin: 12px 0;
+    direction: ltr;
+    text-align: left;
+    white-space: pre;
+  }
+
+  .warning-box {
+    background-color: #fef9e7;
+    border: 1px solid #f39c12;
+    border-right: 5px solid #f39c12;
+    padding: 10px 14px;
+    margin: 14px 0;
+    font-size: 10.5pt;
+  }
+
+  .warning-box strong {
+    color: #d35400;
+  }
+
+  .note-box {
+    background-color: #eafaf1;
+    border: 1px solid #27ae60;
+    border-right: 5px solid #27ae60;
+    padding: 10px 14px;
+    margin: 14px 0;
+    font-size: 10.5pt;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 10.5pt;
+  }
+
+  thead tr {
+    background-color: #1a5276;
+    color: white;
+  }
+
+  thead th {
+    padding: 9px 12px;
+    text-align: right;
+    font-weight: bold;
+  }
+
+  tbody tr:nth-child(even) {
+    background-color: #f2f3f4;
+  }
+
+  tbody tr:hover {
+    background-color: #d6eaf8;
+  }
+
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #dce1e4;
+    vertical-align: top;
+  }
+
+  .badge-required {
+    background-color: #e74c3c;
+    color: white;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 9pt;
+    font-family: 'Courier New', monospace;
+  }
+
+  .badge-optional {
+    background-color: #95a5a6;
+    color: white;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 9pt;
+    font-family: 'Courier New', monospace;
+  }
+
+  .badge-api {
+    background-color: #8e44ad;
+    color: white;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 10pt;
+    font-family: 'Courier New', monospace;
+    margin-left: 8px;
+  }
+
+  .type-tag {
+    color: #2980b9;
+    font-family: 'Courier New', monospace;
+    font-size: 9.5pt;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .summary-table thead tr {
+    background-color: #154360;
+  }
+
+  code {
+    background-color: #f2f3f4;
+    font-family: 'Courier New', monospace;
+    font-size: 9.5pt;
+    padding: 1px 4px;
+    border-radius: 2px;
+    direction: ltr;
+    display: inline-block;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #bdc3c7;
+    margin: 24px 0;
+  }
+
+  .formula-box {
+    background-color: #f0f4ff;
+    border: 1px solid #3498db;
+    padding: 10px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 10pt;
+    direction: ltr;
+    text-align: left;
+    margin: 10px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  COVER                                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<h1>توثيق APIs — البرنامج الرئيسي<br>لحملة Sky Clubs</h1>
+
+<div class="meta-box">
+  <table>
+    <tr>
+      <td><strong>الإصدار:</strong></td><td>1.0</td>
+      <td><strong>التاريخ:</strong></td><td>2026-05-04</td>
+    </tr>
+    <tr>
+      <td><strong>المشروع:</strong></td><td>Sky Clubs Campaign</td>
+      <td><strong>الغرض:</strong></td><td>تكامل البرنامج الرئيسي مع نظام Sky Clubs</td>
+    </tr>
+    <tr>
+      <td><strong>الجهة المُعدّة:</strong></td><td>فريق Sky Clubs</td>
+      <td><strong>الجهة المستهدفة:</strong></td><td>شركة تطوير البرنامج الرئيسي</td>
+    </tr>
+  </table>
+</div>
+
+<h3>مقدمة</h3>
+<p>
+نظام <strong>Sky Clubs</strong> هو نظام إدارة حملات مبيعات مستقل يعمل <strong>فوق</strong> البرنامج الرئيسي.
+البرنامج الرئيسي هو <strong>مصدر الحقيقة</strong> لبيانات الوكلاء والموزعين والخطوط.
+Sky Clubs يقرأ هذه البيانات ويضيف عليها منطق الحملة (الأندية، الترقيات، المكافآت، اليانصيب).
+</p>
+
+<div class="note-box">
+  <strong>مبدأ أساسي:</strong> البرنامج الرئيسي لا يعلم شيئاً عن الحملة ولا يتأثر بها.
+  كل ما هو مطلوب منه هو تعريض 3 نقاط API فقط.
+</div>
+
+<table class="summary-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>اسم الـ API</th>
+      <th>متى يُستدعى</th>
+      <th>الغرض</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>قائمة الوكلاء</td>
+      <td>مرة عند الإطلاق + عند وكلاء جدد</td>
+      <td>استيراد بيانات الوكلاء الأساسية</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>قائمة الموزعين</td>
+      <td>مرة عند الإطلاق + عند تغييرات</td>
+      <td>استيراد بيانات الموزعين</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>الإحصائيات اليومية</td>
+      <td>كل يوم تلقائياً (Cron)</td>
+      <td>تحديث أرقام أداء الوكلاء اليومية</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  API 1                                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+
+<h2>API 1 — قائمة الوكلاء <span class="badge-api">GET /api/agents</span></h2>
+
+<h3>الغرض</h3>
+<p>
+جلب البيانات الأساسية لجميع الوكلاء المسجلين في البرنامج الرئيسي.
+يُستدعى <strong>مرة واحدة</strong> عند إطلاق الحملة لاستيراد الوكلاء الحاليين،
+ثم دورياً للكشف عن الوكلاء الجدد الذين انضموا بعد بدء الحملة.
+</p>
+
+<h3>نقطة النهاية (Endpoint)</h3>
+<div class="endpoint-box">
+  <span class="method">GET</span> <span class="url">/api/agents</span><br>
+  <span class="method">GET</span> <span class="url">/api/agents?created_after=2026-05-01</span>  <span class="comment">← للوكلاء الجدد فقط</span>
+</div>
+
+<h3>المصادقة (Authentication)</h3>
+<div class="endpoint-box">
+  Authorization: Bearer {token}
+</div>
+
+<h3>مثال على الاستجابة (Response)</h3>
+<div class="json-box">{
+  "data": [
+    {
+      "agent_id":            "550e8400-e29b-41d4-a716-446655440000",
+      "agent_name":          "محمد أحمد",
+      "distributor_id":      "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "baseline_count":      180,
+      "pre_campaign_count":  195,
+      "current_total":       195,
+      "transfer_count":      0,
+      "new_line_count":      0
+    },
+    {
+      "agent_id":            "661f9511-f30c-52e5-b827-557766551111",
+      "agent_name":          "سارة خالد",
+      "distributor_id":      "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "baseline_count":      240,
+      "pre_campaign_count":  252,
+      "current_total":       252,
+      "transfer_count":      0,
+      "new_line_count":      0
+    }
+  ]
+}</div>
+
+<h3>شرح الحقول</h3>
+<table>
+  <thead>
+    <tr>
+      <th>الحقل</th>
+      <th>النوع</th>
+      <th>إلزامي؟</th>
+      <th>الشرح التفصيلي</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>agent_id</code></td>
+      <td><span class="type-tag">UUID</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        المعرف الفريد للوكيل في نظامكم.<br>
+        <strong>لا يتغير أبداً طوال عمر النظام.</strong><br>
+        يُستخدم كمفتاح رئيسي في Sky Clubs للربط بين النظامين.
+      </td>
+    </tr>
+    <tr>
+      <td><code>agent_name</code></td>
+      <td><span class="type-tag">string</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>الاسم الكامل للوكيل كما هو مسجل في نظامكم.</td>
+    </tr>
+    <tr>
+      <td><code>distributor_id</code></td>
+      <td><span class="type-tag">UUID</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        معرف الموزع المسؤول عن هذا الوكيل.<br>
+        يجب أن يتطابق مع <code>distributor_id</code> الموجود في API 2.<br>
+        يُستخدم لربط الوكيل بموزعه في Sky Clubs تلقائياً.
+      </td>
+    </tr>
+    <tr>
+      <td><code>baseline_count</code></td>
+      <td><span class="type-tag">integer ≥ 1</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        <strong>إجمالي خطوط الوكيل قبل بداية الحملة</strong> (قبل 2026-05-01).<br>
+        رقم مرجعي تاريخي — <strong>لا يتغير أبداً</strong> بعد الاستيراد الأول.<br>
+        مثال: إذا كان للوكيل 180 خطاً في أبريل 2026، فـ <code>baseline_count = 180</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><code>pre_campaign_count</code></td>
+      <td><span class="type-tag">integer ≥ 0</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        <strong>إجمالي خطوط الوكيل في يوم بدء الحملة (2026-05-01)</strong>.<br>
+        هذا هو <strong>نقطة الصفر</strong> التي تُحسب منها كل الزيادات طوال الحملة.<br>
+        الشرط: يجب أن يكون أقل من أو يساوي <code>baseline_count</code>.<br>
+        مثال: إذا كان للوكيل 195 خطاً في 2026-05-01، فـ <code>pre_campaign_count = 195</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><code>current_total</code></td>
+      <td><span class="type-tag">integer ≥ 0</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        إجمالي الخطوط النشطة للوكيل في وقت الاستيراد.<br>
+        عند الاستيراد الأول يكون <strong>مساوياً لـ <code>pre_campaign_count</code></strong>.<br>
+        الشرط: يجب أن يكون أكبر من أو يساوي <code>pre_campaign_count</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><code>transfer_count</code></td>
+      <td><span class="type-tag">integer ≥ 0</span></td>
+      <td><span class="badge-optional">اختياري</span></td>
+      <td>
+        عدد خطوط النقل التراكمية منذ 2026-05-01.<br>
+        المقصود: الخطوط التي انتقلت من شركات اتصالات أخرى إلى شركتنا عبر هذا الوكيل.<br>
+        عند الاستيراد الأول يكون <code>0</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><code>new_line_count</code></td>
+      <td><span class="type-tag">integer ≥ 0</span></td>
+      <td><span class="badge-optional">اختياري</span></td>
+      <td>
+        عدد الخطوط الجديدة التراكمية منذ 2026-05-01.<br>
+        المقصود: الخطوط الجديدة التي فعّلها هذا الوكيل من الصفر (عملاء جدد).<br>
+        عند الاستيراد الأول يكون <code>0</code>.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>قواعد التحقق (Validation Rules)</h3>
+<div class="formula-box">
+baseline_count      ≥ 1
+pre_campaign_count  ≤ baseline_count
+pre_campaign_count  ≥ 0
+current_total       ≥ pre_campaign_count
+transfer_count      ≥ 0
+new_line_count      ≥ 0
+agent_id            → UUID صالح وفريد
+distributor_id      → UUID موجود في قائمة الموزعين
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  API 2                                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+
+<h2>API 2 — قائمة الموزعين <span class="badge-api">GET /api/distributors</span></h2>
+
+<h3>الغرض</h3>
+<p>
+جلب بيانات الموزعين المسجلين في البرنامج الرئيسي.
+يُستدعى <strong>مرة واحدة</strong> عند إطلاق الحملة لإنشاء حسابات الموزعين في Sky Clubs،
+ثم عند أي إضافة أو تعديل على الموزعين.
+</p>
+
+<div class="note-box">
+  <strong>ملاحظة مهمة:</strong>
+  يجب استيراد هذا الـ API <strong>قبل</strong> API 1 (الوكلاء)،
+  لأن كل وكيل يحتاج إلى <code>distributor_id</code> صالح موجود في النظام مسبقاً.
+</div>
+
+<h3>نقطة النهاية (Endpoint)</h3>
+<div class="endpoint-box">
+  <span class="method">GET</span> <span class="url">/api/distributors</span><br>
+  <span class="method">GET</span> <span class="url">/api/distributors?updated_after=2026-05-01</span>  <span class="comment">← للتغييرات فقط</span>
+</div>
+
+<h3>المصادقة (Authentication)</h3>
+<div class="endpoint-box">
+  Authorization: Bearer {token}
+</div>
+
+<h3>مثال على الاستجابة (Response)</h3>
+<div class="json-box">{
+  "data": [
+    {
+      "distributor_id":  "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "name":            "شركة الأمل للتوزيع",
+      "contact_person":  "خالد سمير",
+      "phone":           "0599123456",
+      "email":           "khaled@amal-dist.com",
+      "region":          "الضفة الشمالية",
+      "is_active":       true
+    },
+    {
+      "distributor_id":  "8d0f7790-g41d-63f6-c938-668877662222",
+      "name":            "مؤسسة النجاح",
+      "contact_person":  "ريم ناصر",
+      "phone":           "0598654321",
+      "email":           "reem@alnajah.com",
+      "region":          "الضفة الجنوبية",
+      "is_active":       true
+    }
+  ]
+}</div>
+
+<h3>شرح الحقول</h3>
+<table>
+  <thead>
+    <tr>
+      <th>الحقل</th>
+      <th>النوع</th>
+      <th>إلزامي؟</th>
+      <th>الشرح التفصيلي</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>distributor_id</code></td>
+      <td><span class="type-tag">UUID</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        المعرف الفريد للموزع في نظامكم.<br>
+        <strong>لا يتغير أبداً.</strong><br>
+        يُستخدم للربط مع الوكلاء في API 1 عبر حقل <code>distributor_id</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><code>name</code></td>
+      <td><span class="type-tag">string</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>اسم شركة أو شخص الموزع كما هو مسجل رسمياً.</td>
+    </tr>
+    <tr>
+      <td><code>contact_person</code></td>
+      <td><span class="type-tag">string</span></td>
+      <td><span class="badge-optional">اختياري</span></td>
+      <td>اسم الشخص المسؤول للتواصل في حالة الحاجة لذلك.</td>
+    </tr>
+    <tr>
+      <td><code>phone</code></td>
+      <td><span class="type-tag">string</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        رقم هاتف الموزع.<br>
+        يُستخدم <strong>لتسجيل الدخول</strong> في بوابة الموزع على Sky Clubs.
+      </td>
+    </tr>
+    <tr>
+      <td><code>email</code></td>
+      <td><span class="type-tag">string (email)</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        البريد الإلكتروني للموزع — يجب أن يكون فريداً.<br>
+        يُستخدم <strong>لتسجيل الدخول</strong> في بوابة الموزع على Sky Clubs.<br>
+        <em>ملاحظة: كلمة المرور تُنشأ داخل Sky Clubs بشكل مستقل.</em>
+      </td>
+    </tr>
+    <tr>
+      <td><code>region</code></td>
+      <td><span class="type-tag">string</span></td>
+      <td><span class="badge-optional">اختياري</span></td>
+      <td>المنطقة الجغرافية التي يعمل فيها الموزع. للعرض فقط.</td>
+    </tr>
+    <tr>
+      <td><code>is_active</code></td>
+      <td><span class="type-tag">boolean</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        هل الموزع نشط حالياً في النظام؟<br>
+        <code>true</code> → يستطيع تسجيل الدخول لـ Sky Clubs.<br>
+        <code>false</code> → يُحجب وصوله تلقائياً.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>قواعد التحقق (Validation Rules)</h3>
+<div class="formula-box">
+distributor_id → UUID صالح وفريد
+email          → صيغة بريد إلكتروني صحيحة وفريدة
+phone          → لا يكون فارغاً
+is_active      → true أو false فقط
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  API 3                                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+
+<h2>API 3 — الإحصائيات اليومية <span class="badge-api">GET /api/agents/daily-stats</span></h2>
+
+<h3>الغرض</h3>
+<p>
+جلب أرقام الأداء المحدّثة لجميع الوكلاء في نهاية كل يوم عمل.
+هذا هو <strong>أهم وأكثر الـ APIs استخداماً</strong> — يُستدعى تلقائياً كل يوم عبر Cron Job.
+يحل محل عملية رفع ملف Excel اليدوية كلياً.
+</p>
+
+<h3>نقطة النهاية (Endpoint)</h3>
+<div class="endpoint-box">
+  <span class="method">GET</span> <span class="url">/api/agents/daily-stats?date=2026-05-04</span>
+</div>
+
+<h3>المصادقة (Authentication)</h3>
+<div class="endpoint-box">
+  Authorization: Bearer {token}
+</div>
+
+<h3>مثال على الاستجابة (Response)</h3>
+<div class="json-box">{
+  "date": "2026-05-04",
+  "data": [
+    {
+      "agent_id":       "550e8400-e29b-41d4-a716-446655440000",
+      "current_total":  228,
+      "transfer_count": 18,
+      "new_line_count": 15
+    },
+    {
+      "agent_id":       "661f9511-f30c-52e5-b827-557766551111",
+      "current_total":  265,
+      "transfer_count": 22,
+      "new_line_count": 11
+    }
+  ]
+}</div>
+
+<h3>شرح الحقول</h3>
+<table>
+  <thead>
+    <tr>
+      <th>الحقل</th>
+      <th>النوع</th>
+      <th>إلزامي؟</th>
+      <th>الشرح التفصيلي</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>date</code></td>
+      <td><span class="type-tag">date (YYYY-MM-DD)</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        التاريخ الذي تمثّله هذه البيانات.<br>
+        يجب أن يطابق قيمة الـ <code>?date</code> في الطلب.<br>
+        Sky Clubs يرفض أي استجابة يختلف فيها هذا التاريخ عن المطلوب.
+      </td>
+    </tr>
+    <tr>
+      <td><code>agent_id</code></td>
+      <td><span class="type-tag">UUID</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        نفس الـ UUID المُرسَل في API 1.<br>
+        يُستخدم للبحث عن الوكيل وتحديث أرقامه في Sky Clubs.
+      </td>
+    </tr>
+    <tr>
+      <td><code>current_total</code></td>
+      <td><span class="type-tag">integer ≥ 0</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        <strong>الإجمالي التراكمي للخطوط النشطة</strong> لهذا الوكيل حتى نهاية هذا اليوم.<br>
+        Sky Clubs يحسب منه زيادة الحملة بالمعادلة:<br>
+        <code>زيادة الحملة = current_total − pre_campaign_count</code><br>
+        مثال: إذا بدأ الوكيل بـ 195 خطاً وأصبح لديه 228 خطاً، فالزيادة = 33 خطاً.<br>
+        هذه الزيادة هي التي تحدد في أي نادٍ يكون الوكيل.
+      </td>
+    </tr>
+    <tr>
+      <td><code>transfer_count</code></td>
+      <td><span class="type-tag">integer ≥ 0</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        <strong>الإجمالي التراكمي لخطوط النقل</strong> منذ 2026-05-01 حتى هذا اليوم.<br>
+        يُستخدم للتحقق من شرط النقل لكل نادٍ (مثال: يجب أن يكون ≥ 15 للدخول لأول نادٍ).<br>
+        أيضاً يُستخدم لحساب نسبة النقل: <code>transfer_count / زيادة الحملة</code>.<br>
+        إذا انخفضت النسبة عن 60% تبدأ آلية التحذير من التهبيط.
+      </td>
+    </tr>
+    <tr>
+      <td><code>new_line_count</code></td>
+      <td><span class="type-tag">integer ≥ 0</span></td>
+      <td><span class="badge-required">مطلوب</span></td>
+      <td>
+        <strong>الإجمالي التراكمي للخطوط الجديدة</strong> منذ 2026-05-01 حتى هذا اليوم.<br>
+        يُستخدم في أعلى نادٍ (Peak Club) لمنح فرص يانصيب إضافية:<br>
+        <code>كل 20 خطاً جديداً = فرصة يانصيب إضافية</code>.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warning-box">
+  <strong>تحذير حرج — التراكمية vs اليومية:</strong><br><br>
+  الخطأ الأكثر شيوعاً هو إرسال أرقام اليوم فقط بدلاً من الإجمالي التراكمي.<br><br>
+  <strong>❌ خطأ:</strong> إرسال 5 لأن الوكيل باع 5 خطوط اليوم فقط.<br>
+  <strong>✅ صحيح:</strong> إرسال 228 لأن هذا إجمالي كل خطوطه النشطة حتى اليوم.<br><br>
+  Sky Clubs يحسب الزيادة داخلياً بطرح <code>pre_campaign_count</code> من <code>current_total</code>.
+  إذا أُرسلت أرقام يومية بدلاً من تراكمية ستكون نتائج الحملة خاطئة كلياً.
+</div>
+
+<h3>قواعد التحقق (Validation Rules)</h3>
+<div class="formula-box">
+current_total   ≥ 0
+transfer_count  ≥ 0
+new_line_count  ≥ 0
+agent_id        → موجود في النظام (من API 1)
+date            → يطابق التاريخ المطلوب في الـ Query Parameter
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  SECTION 4: INTEGRATION TIMELINE                        -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+
+<h2>الجدول الزمني للتكامل</h2>
+
+<h3>مرحلة الإطلاق (مرة واحدة — 2026-05-01)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>الترتيب</th>
+      <th>الإجراء</th>
+      <th>الـ API</th>
+      <th>الملاحظات</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>استيراد الموزعين</td>
+      <td>API 2</td>
+      <td>يجب أن يكون أولاً قبل الوكلاء</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>استيراد الوكلاء</td>
+      <td>API 1</td>
+      <td>بعد الموزعين — يربط كل وكيل بموزعه</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>أول تحديث يومي</td>
+      <td>API 3</td>
+      <td>تشغيل في نهاية أول يوم عمل للحملة</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>العمليات اليومية (كل يوم عمل تلقائياً)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>الوقت</th>
+      <th>الإجراء</th>
+      <th>الـ API</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>بعد إغلاق يوم العمل</td>
+      <td>جلب إحصائيات الوكلاء اليومية</td>
+      <td>API 3</td>
+    </tr>
+    <tr>
+      <td>أسبوعياً أو عند الحاجة</td>
+      <td>فحص وكلاء جدد</td>
+      <td>API 1 <code>?created_after=...</code></td>
+    </tr>
+    <tr>
+      <td>عند الحاجة</td>
+      <td>فحص تغييرات الموزعين</td>
+      <td>API 2 <code>?updated_after=...</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>متطلبات المصادقة والأمان</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>الجانب</th>
+      <th>المتطلب</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>نوع المصادقة</td>
+      <td>Bearer Token — يُرسَل في الـ Header مع كل طلب</td>
+    </tr>
+    <tr>
+      <td>HTTPS</td>
+      <td>إلزامي — لا يُقبل HTTP</td>
+    </tr>
+    <tr>
+      <td>صلاحية الـ Token</td>
+      <td>مفضّل: token دائم أو بصلاحية سنة على الأقل (لأن الاستدعاء يومي تلقائي)</td>
+    </tr>
+    <tr>
+      <td>Rate Limiting</td>
+      <td>يجب السماح بـ 3 طلبات على الأقل في الدقيقة لكل IP</td>
+    </tr>
+    <tr>
+      <td>IP Whitelist</td>
+      <td>اختياري — يمكن تقييد الوصول لـ IP خادم Sky Clubs فقط</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>ملاحظات ختامية للمطوّرين</h2>
+
+<div class="note-box">
+  <strong>ما لا يحتاجه البرنامج الرئيسي:</strong><br>
+  لا يحتاج البرنامج الرئيسي لمعرفة أي شيء عن الحملة أو الأندية أو المكافآت.
+  كل ما هو مطلوب هو تعريض هذه الـ 3 نقاط وإرسال البيانات الموضحة أعلاه بشكل صحيح.
+</div>
+
+<div class="warning-box">
+  <strong>في حال وجود وكيل في API 3 غير موجود في Sky Clubs:</strong><br>
+  Sky Clubs سيتجاهله ويسجّل خطأ في السجلات. يُنصح بالتأكد أن API 1 يُستدعى أولاً
+  لاستيراد أي وكيل جديد قبل وصول بياناته في API 3.
+</div>
+
+<p style="margin-top: 40px; font-size: 9pt; color: #7f8c8d; text-align: center;">
+  Sky Clubs Campaign — API Specification v1.0 — 2026-05-04<br>
+  هذا المستند سري ومخصص لشركة تطوير البرنامج الرئيسي فقط
+</p>
+
+</body>
+</html>

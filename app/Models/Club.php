@@ -24,7 +24,6 @@ class Club extends Model
         'seat_capacity',
         'grand_prize_amount',
         'entry_opportunities',
-        'demotion_timer_days',
         'has_bonus_opportunities',
         'bonus_per_numbers',
         'is_active',

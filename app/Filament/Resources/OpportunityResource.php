@@ -27,7 +27,7 @@ class OpportunityResource extends Resource
 
     public static function getNavigationGroup(): ?string { return 'إدارة الحملة'; }
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $label = 'فرصة سحب';
 

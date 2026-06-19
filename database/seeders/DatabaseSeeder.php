@@ -37,13 +37,14 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ClubsSeeder::class,
             RolesAndPermissionsSeeder::class,
+            AdminUserSeeder::class,
+            AppSettingsSeeder::class,
         ]);
 
         $this->command->info('');
         $this->command->info('═══════════════════════════════════════════════════════');
         $this->command->info('  ✅ All seeders completed successfully.');
-        $this->command->info('  Next step: Create a super_admin user via:');
-        $this->command->info('  php artisan make:admin (or via Tinker)');
+        $this->command->info('  Login: admin@skyclubs.test / Admin@12345');
         $this->command->info('═══════════════════════════════════════════════════════');
         $this->command->info('');
     }

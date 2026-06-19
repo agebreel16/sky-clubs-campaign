@@ -5,10 +5,14 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\DataImportResource\Pages;
 use App\Models\DataImport;
 use Filament\Forms\Components\DatePicker;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\View;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -35,6 +39,8 @@ class DataImportResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([
+            View::make('filament.components.excel-fields-notice')
+                ->columnSpanFull(),
             Section::make('بيانات الاستيراد')
                 ->columns(2)
                 ->schema([
@@ -48,7 +54,8 @@ class DataImportResource extends Resource
                             'api'   => 'API',
                         ])
                         ->required()
-                        ->default('excel'),
+                        ->default('excel')
+                        ->live(),
                     FileUpload::make('stored_filepath')
                         ->label('ملف Excel')
                         ->disk('local')
@@ -57,9 +64,78 @@ class DataImportResource extends Resource
                             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                             'application/vnd.ms-excel',
                         ])
-                        ->required()
-                        ->visible(fn ($get) => $get('source_type') === 'excel')
+                        ->required(fn (Get $get) => $get('source_type') === 'excel')
+                        ->visible(fn (Get $get) => $get('source_type') === 'excel')
                         ->storeFileNamesIn('original_filename'),
+
+                    TextInput::make('api_url')
+                        ->label('رابط API')
+                        ->url()
+                        ->required(fn (Get $get) => $get('source_type') === 'api')
+                        ->visible(fn (Get $get) => $get('source_type') === 'api')
+                        ->placeholder('https://example.com/api/agent-stats'),
+
+                    TextInput::make('api_token')
+                        ->label('توكن API')
+                        ->password()
+                        ->revealable()
+                        ->required(fn (Get $get) => $get('source_type') === 'api')
+                        ->visible(fn (Get $get) => $get('source_type') === 'api'),
+                ]),
+        ]);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema->schema([
+            Section::make('إحصائيات المعالجة')
+                ->columns(4)
+                ->schema([
+                    TextEntry::make('status')
+                        ->label('الحالة')
+                        ->badge()
+                        ->color(fn ($state) => match($state) {
+                            'success'    => 'success',
+                            'failed'     => 'danger',
+                            'processing' => 'info',
+                            default      => 'warning',
+                        })
+                        ->formatStateUsing(fn ($state) => match($state) {
+                            'success'    => 'مكتمل',
+                            'failed'     => 'فشل',
+                            'processing' => 'جارٍ المعالجة',
+                            default      => 'في الانتظار',
+                        }),
+                    TextEntry::make('source_type')
+                        ->label('نوع المصدر')
+                        ->formatStateUsing(fn ($state) => match($state) {
+                            'excel'     => 'Excel',
+                            'api'       => 'API أرقام',
+                            'deals_api' => 'API خطوط الوكلاء',
+                            default     => $state,
+                        }),
+                    TextEntry::make('data_date')->label('تاريخ البيانات')->date('d/m/Y'),
+                    TextEntry::make('processing_duration_ms')->label('المدة (ms)'),
+                    TextEntry::make('total_agents')->label('الإجمالي'),
+                    TextEntry::make('processed')->label('نجح')->color('success'),
+                    TextEntry::make('rejected')->label('مرفوض')->color('danger'),
+                    TextEntry::make('errors_count')->label('أخطاء'),
+                    TextEntry::make('promotions_count')->label('ترقيات'),
+                    TextEntry::make('demotions_count')->label('تهبيطات'),
+                    TextEntry::make('warnings_count')->label('تحذيرات'),
+                    TextEntry::make('error_message')->label('رسالة الخطأ')->columnSpan(4)->visible(fn ($record) => ! empty($record->error_message)),
+                ]),
+
+            Section::make('تفاصيل الأخطاء')
+                ->visible(fn ($record) => ! empty($record->error_details))
+                ->schema([
+                    RepeatableEntry::make('error_details')
+                        ->label('')
+                        ->schema([
+                            TextEntry::make('agent_id')->label('معرف الوكيل')->copyable()->fontFamily('mono'),
+                            TextEntry::make('error')->label('السبب')->color('danger'),
+                        ])
+                        ->columns(2),
                 ]),
         ]);
     }

@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Agent;
+use App\Models\ClubChangeRequest;
 use App\Models\HistoryLog;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -12,6 +13,14 @@ class TodayActivityWidget extends BaseWidget
     protected static ?int $sort = 3;
 
     protected ?string $heading = 'نشاط اليوم';
+
+    /**
+     * Hidden from dashboard — data is covered by CampaignStatsOverview.
+     */
+    public static function canView(): bool
+    {
+        return false;
+    }
 
     protected function getStats(): array
     {
@@ -29,8 +38,8 @@ class TodayActivityWidget extends BaseWidget
             ->where('created_at', '>=', $today)
             ->count();
 
-        $warnings = HistoryLog::where('event_type', 'warning')
-            ->where('event_timestamp', '>=', $today)
+        $pendingToday = ClubChangeRequest::whereDate('created_at', today())
+            ->where('status', 'pending')
             ->count();
 
         return [
@@ -49,10 +58,10 @@ class TodayActivityWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-star')
                 ->color('warning'),
 
-            Stat::make('تنبيهات ⚠️', $warnings)
-                ->description('تحذيرات عداد التهبيط')
-                ->descriptionIcon('heroicon-m-exclamation-triangle')
-                ->color($warnings > 0 ? 'danger' : 'gray'),
+            Stat::make('طلبات جديدة اليوم', $pendingToday)
+                ->description('طلبات تغيير النادي المعلّقة اليوم')
+                ->descriptionIcon('heroicon-m-clock')
+                ->color($pendingToday > 0 ? 'warning' : 'gray'),
         ];
     }
 }

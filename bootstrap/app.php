@@ -10,8 +10,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withProviders([
+        \App\Providers\Filament\DistributorPanelProvider::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'agent.portal.auth' => \App\Http\Middleware\AgentPortalAuth::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -26,9 +26,9 @@ class RewardResource extends Resource
 
     public static function getNavigationIcon(): string { return 'heroicon-o-currency-dollar'; }
 
-    public static function getNavigationGroup(): ?string { return 'المالية والمكافآت'; }
+    public static function getNavigationGroup(): ?string { return 'إدارة الحملة'; }
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $label = 'مكافأة';
 

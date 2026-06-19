@@ -14,6 +14,14 @@ class ImportStatusWidget extends Widget
 
     protected string $view = 'filament.widgets.import-status-widget';
 
+    /**
+     * Hidden from main dashboard — belongs in the data import section only.
+     */
+    public static function canView(): bool
+    {
+        return false;
+    }
+
     protected function getViewData(): array
     {
         $lastImport = DataImport::orderByDesc('created_at')->first();

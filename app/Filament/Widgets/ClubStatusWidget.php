@@ -10,6 +10,8 @@ class ClubStatusWidget extends Widget
 {
     protected static ?int $sort = 2;
 
+    protected static bool $isLazy = false;
+
     protected int | string | array $columnSpan = 'full';
 
     protected string $view = 'filament.widgets.club-status-widget';
@@ -17,46 +19,39 @@ class ClubStatusWidget extends Widget
     protected function getViewData(): array
     {
         $clubs = Club::orderBy('club_order')->get()->map(function (Club $club) {
-            $membersCount = Agent::where('current_club_id', $club->club_id)->count();
+            $membersCount = Agent::where('current_club_id', $club->club_id)
+                ->where('is_violator', false)
+                ->count();
             $percentage   = $club->seat_capacity > 0
                 ? round(($membersCount / $club->seat_capacity) * 100)
                 : 0;
 
-            $status = $membersCount >= $club->seat_capacity ? 'EXCEEDING' : 'MEETING';
-
             $latestMember = Agent::where('current_club_id', $club->club_id)
+                ->where('is_violator', false)
                 ->orderByDesc('entry_date')
                 ->first();
 
-            // Premium Metadata
-            $metadata = match($club->club_name) {
-                'Launch Club'     => [
-                    'icon'       => 'heroicon-o-rocket-launch',
-                    'gradient'   => 'from-blue-600 to-sky-400',
-                    'shadow'     => 'shadow-blue-500/20',
-                    'text_color' => 'text-blue-600',
-                    'bg_light'   => 'bg-blue-50',
+            // Color CSS variable based on club order (design system tokens)
+            [$colorVar, $glowColorVar, $gradientCss] = match ((int) $club->club_order) {
+                1 => [
+                    '--sc-accent',
+                    '--sc-accent-glow',
+                    'linear-gradient(135deg, oklch(0.60 0.22 245), oklch(0.50 0.22 270))',
                 ],
-                'Excellence Club' => [
-                    'icon'       => 'heroicon-o-sparkles',
-                    'gradient'   => 'from-amber-600 to-yellow-400',
-                    'shadow'     => 'shadow-amber-500/20',
-                    'text_color' => 'text-amber-600',
-                    'bg_light'   => 'bg-amber-50',
+                2 => [
+                    '--sc-gold',
+                    '--sc-gold-glow',
+                    'linear-gradient(135deg, oklch(0.78 0.15 82), oklch(0.68 0.15 82))',
                 ],
-                'Peak Club'       => [
-                    'icon'       => 'heroicon-o-trophy',
-                    'gradient'   => 'from-indigo-700 to-violet-500',
-                    'shadow'     => 'shadow-indigo-500/20',
-                    'text_color' => 'text-indigo-600',
-                    'bg_light'   => 'bg-indigo-50',
+                3 => [
+                    '--sc-purple',
+                    '--sc-purple-glow',
+                    'linear-gradient(135deg, oklch(0.62 0.20 295), oklch(0.72 0.20 295))',
                 ],
-                default           => [
-                    'icon'       => 'heroicon-o-star',
-                    'gradient'   => 'from-gray-600 to-gray-400',
-                    'shadow'     => 'shadow-gray-500/20',
-                    'text_color' => 'text-gray-600',
-                    'bg_light'   => 'bg-gray-50',
+                default => [
+                    '--sc-text2',
+                    '--sc-border',
+                    'linear-gradient(135deg, #4b5563, #9ca3af)',
                 ],
             };
 
@@ -64,9 +59,11 @@ class ClubStatusWidget extends Widget
                 'club'          => $club,
                 'membersCount'  => $membersCount,
                 'percentage'    => $percentage,
-                'status'        => $status,
                 'latestMember'  => $latestMember,
-                'metadata'      => $metadata,
+                'colorVar'      => $colorVar,
+                'glowColorVar'  => $glowColorVar,
+                'gradientCss'   => $gradientCss,
+                'isFull'        => $membersCount >= $club->seat_capacity,
             ];
         });
 
